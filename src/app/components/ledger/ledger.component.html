@@ -1,0 +1,31 @@
+<app-main-layout>
+<div class="filter-row">
+  <label>Customer:</label>
+  <select [(ngModel)]="selectedCustomerId" (change)="filterByCustomer()">
+    <option value="">All</option>
+    <option *ngFor="let c of customers" [value]="c.id">{{c.name}}</option>
+  </select>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Type</th>
+      <th>Details</th>
+      <th>Credit</th>
+      <th>Debit</th>
+      <th>Balance</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let entry of ledger">
+      <td>{{entry.date}}</td>
+      <td>{{entry.type}}</td>
+      <td>{{entry.details}}</td>
+      <td>{{entry.credit ? (entry.credit | number:'1.2-2') : ''}}</td>
+      <td>{{entry.debit ? (entry.debit | number:'1.2-2') : ''}}</td>
+      <td>{{entry.balance | number:'1.2-2'}}</td>
+    </tr>
+  </tbody>
+</table>
+</app-main-layout>

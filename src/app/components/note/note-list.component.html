@@ -1,0 +1,21 @@
+<app-main-layout>
+<h2>Notes</h2>
+<form (ngSubmit)="addNote()" class="note-form">
+  <input [(ngModel)]="newNote.text" name="text" placeholder="Note" required />
+  <select [(ngModel)]="newNote.type" name="type">
+    <option value="info">Info</option>
+    <option value="credit">Credit</option>
+    <option value="debit">Debit</option>
+  </select>
+  <button type="submit">Add Note</button>
+  <button type="button" (click)="startListening()">
+    {{ listening ? 'Listening...' : 'Speech to Text' }}
+  </button>
+</form>
+<ul>
+  <li *ngFor="let n of notes">
+    {{n.text}} ({{n.type}})
+    <button (click)="deleteNote(n.id)">Delete</button>
+  </li>
+</ul>
+</app-main-layout>

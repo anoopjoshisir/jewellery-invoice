@@ -1,0 +1,71 @@
+.invoice-form {
+  width: 95vw;
+  margin: 18px auto;
+  padding: 12px 18px 28px 18px;
+  background: #fafbfe;
+  border-radius: 10px;
+  box-shadow: 0 1px 10px #0001;
+
+  .popup-field {
+    position: relative;
+    margin-bottom: 16px;
+    > input { cursor: pointer; background: #fff; }
+    .popup {
+      position: absolute;
+      left: 0; top: 100%; z-index: 5;
+      background: #fff;
+      border: 1px solid #d3d6db;
+      border-radius: 8px;
+      width: 100%;
+      padding: 10px;
+      max-height: 220px;
+      overflow: auto;
+      box-shadow: 0 4px 14px #0002;
+      ul { margin: 0; padding: 0; list-style: none; }
+      li {
+        padding: 7px 10px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        &:hover { background: #f5f9ff; }
+      }
+      input[type="text"] { margin-bottom: 8px; }
+      button { margin-top: 8px; }
+    }
+  }
+
+  .item-row, .payment-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    align-items: center;
+    > * { flex: 1; min-width: 0; }
+    button { flex: none; font-size: 1.1em; }
+  }
+
+  .discount-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    > select, > input { flex: 1; }
+  }
+
+  .summary {
+    margin: 18px 0 0 0;
+    font-size: 1.1em;
+    > div { margin-bottom: 4px; }
+    b { color: #0d47a1; }
+  }
+
+  button[type="submit"] {
+    margin-top: 22px;
+    padding: 10px 32px;
+    border-radius: 6px;
+    background: #14213d;
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1.1em;
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+}

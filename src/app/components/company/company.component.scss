@@ -1,0 +1,24 @@
+
+.company-form {
+  max-width: 430px;
+  margin-bottom: 32px;
+  > label { margin-top: 12px; }
+  > button {
+    margin-top: 18px;
+    margin-right: 8px;
+    padding: 8px 22px;
+    border-radius: 6px;
+    background: #14213d;
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  th, td { padding: 8px 10px; border: 1px solid #eee; }
+  th { background: #f5f6fa; }
+}

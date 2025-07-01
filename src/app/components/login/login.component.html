@@ -1,0 +1,33 @@
+<div style="width: 300px;">
+  <div class="flex flex-col items-center justify-center">
+    <div
+      style="border-radius: 56px; padding: 0.3rem; background: linear-gradient(180deg, var(--primary-color) 10%, rgba(33, 150, 243, 0) 30%)">
+      <div class="w-full bg-surface-0 dark:bg-surface-900 py-20 px-8 sm:px-20" style="border-radius: 53px">
+        <div class="text-center mb-8">
+          <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">Welcome to SmileConnect!</div>
+          <span class="text-muted-color font-medium">Sign in to continue</span>
+        </div>
+        <div>
+          <label for="email1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Email</label>
+          <input pInputText id="email1" type="text" placeholder="Email address" class="w-full md:w-[30rem] mb-8"
+            type="email" [(ngModel)]="email" />
+
+          <label for="password1"
+            class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
+          <input id="password1" placeholder="Password" styleClass="mb-4" type="password" [(ngModel)]="password" />
+
+          <div class="flex items-center justify-between mt-2 mb-8 gap-8">
+            <div class="flex items-center">
+            </div>
+          </div>
+          <button type="button" styleClass="w-full" (click)="login()">Login</button><br /><br />
+          <button type="button" (click)="googleLogin()">Login with Google</button><br /><br />
+          <button type="button" (click)="reset()">Forgot Password?</button>
+          <!-- <p-button label="Google Sign In" styleClass="w-full" [loading]="loading"
+              (onClick)="onGoogleSignIn()"></p-button> -->
+        </div>
+        <div *ngIf="error" class="error">{{ error }}</div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,72 @@
+.payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.loading {
+  color: #1976d2;
+  font-weight: bold;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  background: #fff;
+}
+
+.custom-table th, .custom-table td {
+  border: 1px solid #e0e0e0;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.custom-table tr.selected {
+  background-color: #e3f2fd;
+  font-weight: bold;
+}
+
+.invoice-form {
+  background: #f9f9f9;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  max-width: 400px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.invoice-form label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.invoice-form input,
+.invoice-form select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #bdbdbd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.invoice-form button {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.invoice-form button[disabled] {
+  background: #bdbdbd;
+  cursor: not-allowed;
+}

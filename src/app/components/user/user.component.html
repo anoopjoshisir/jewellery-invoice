@@ -1,0 +1,66 @@
+<app-main-layout>
+    <form [formGroup]="form" (ngSubmit)="save()" class="invoice-form-grid">
+        <div class="form-group">
+            <input type="text" formControlName="name" id="name" />
+            <label for="name">Name</label>
+        </div>
+        <div class="form-group">
+            <input type="email" formControlName="email" id="email" />
+            <label for="email">Email</label>
+        </div>
+        <div class="form-group">
+            <input type="password" formControlName="password" id="password" />
+            <label for="password">Password</label>
+        </div>
+        <div class="form-group">
+            <input type="text" formControlName="displayName" id="displayName" />
+            <label for="displayName">Display Name</label>
+        </div>
+        <div class="form-group">
+            <select formControlName="companies" id="companies" multiple>
+                <option *ngFor="let c of companies" [value]="c.id">{{c.name}}</option>
+            </select>
+            <label for="companies">Companies</label>
+        </div>
+        <div>
+            <input type="checkbox" formControlName="isAdmin" id="isAdmin" />
+            <label for="isAdmin">Admin</label>
+        </div>
+        <button type="submit" [disabled]="!form.valid">{{ selectedUid ? 'Update' : 'Add' }}</button>
+        <button type="button" (click)="form.reset({ companies: [], isAdmin: false });selectedUid=null">Clear</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Display Name</th>
+                <th>Companies</th>
+                <th>Admin</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let u of users">
+                <td>{{u.name}}</td>
+                <td>{{u.email}}</td>
+                <td>{{u.displayName}}</td>
+                <td>
+                    <span *ngFor="let cid of (u.companies || []); let last = last">
+                        {{ getCompanyName(cid) }}<span *ngIf="!last">, </span>
+                    </span>
+                    <!-- <span *ngFor="let cid of (u.companies || [])">
+                        {{ companies.find(c => c.id === cid)?.name || cid }}<span
+                            *ngIf="!isLastCompany(cid, u.companies)">, </span>
+                    </span> -->
+                </td>
+                <td>{{u.isAdmin ? 'Yes' : 'No'}}</td>
+                <td>
+                    <button (click)="edit(u)">Edit</button>
+                    <button (click)="remove(u.uid)">Delete</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</app-main-layout>

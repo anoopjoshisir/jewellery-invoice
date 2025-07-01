@@ -1,0 +1,13 @@
+.filter-row {
+  margin: 12px 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  th, td { padding: 8px 10px; border: 1px solid #eee; }
+  th { background: #f5f6fa; }
+}

@@ -1,0 +1,119 @@
+<div class="payment-form">
+  <div *ngIf="loading" class="loading">Loading...</div>
+  <ng-container *ngIf="!loading">
+
+    <!-- Customers Table -->
+    <h2>Select Customer</h2>
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Total Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let customer of customers"
+            [class.selected]="customer.id === selectedCustomerId"
+            (click)="selectCustomer(customer)">
+          <td>{{ customer.name }}</td>
+          <td>{{ getCustomerBalance(customer) | currency:'INR':'symbol' }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Invoices Table -->
+    <ng-container *ngIf="selectedCustomerId && invoices.length > 0">
+      <h2>Invoices for {{ selectedCustomerName }}</h2>
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Invoice #</th>
+            <th>Date</th>
+            <th>Grand Total</th>
+            <th>Paid</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let invoice of invoices"
+              [class.selected]="invoice === selectedInvoice"
+              (click)="selectInvoice(invoice)">
+            <td>{{ invoice.billNo }}</td>
+            <td>{{ invoice.billDate | date }}</td>
+            <td>{{ invoice.grandTotal | currency:'INR':'symbol' }}</td>
+            <td>{{ invoice.amountPaid | currency:'INR':'symbol' }}</td>
+            <td>{{ getInvoiceBalance(invoice) | currency:'INR':'symbol' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </ng-container>
+
+    <!-- Invoice & Payment Detail Section -->
+    <ng-container *ngIf="selectedInvoice">
+      <div class="invoice-detail">
+        <h3>Invoice Details</h3>
+        <div><b>Invoice #:</b> {{ selectedInvoice.billNo }}</div>
+        <div><b>Date:</b> {{ selectedInvoice.billDate | date }}</div>
+        <div><b>Grand Total:</b> {{ selectedInvoice.grandTotal | currency:'INR':'symbol' }}</div>
+        <div><b>Paid:</b> {{ selectedInvoice.amountPaid | currency:'INR':'symbol' }}</div>
+        <div><b>Balance:</b> {{ getInvoiceBalance(selectedInvoice) | currency:'INR':'symbol' }}</div>
+        <button type="button" (click)="printInvoice()">Print Invoice</button>
+
+        <h4>Payment History</h4>
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Mode</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let payment of selectedInvoice.payments || []">
+              <td>{{ payment.date | date }}</td>
+              <td>{{ payment.amount | currency:'INR':'symbol' }}</td>
+              <td>{{ payment.mode }}</td>
+              <td>{{ payment.note }}</td>
+            </tr>
+            <tr *ngIf="!selectedInvoice.payments || selectedInvoice.payments.length === 0">
+              <td colspan="4">No payments yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Make Payment for Invoice {{ selectedInvoice.billNo }}</h2>
+      <form class="invoice-form" [formGroup]="paymentForm" (ngSubmit)="savePayment()">
+        <div class="form-row">
+          <label>Amount</label>
+          <input type="number" formControlName="amount"
+                min="1"
+                [max]="getInvoiceBalance(selectedInvoice)"
+                required>
+        </div>
+        <div class="form-row">
+          <label>Date</label>
+          <input type="date" formControlName="date" required>
+        </div>
+        <div class="form-row">
+          <label>Mode</label>
+          <select formControlName="mode">
+            <option value="cash">Cash</option>
+            <option value="bank">Bank</option>
+            <option value="upi">UPI</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Note</label>
+          <input type="text" formControlName="note">
+        </div>
+        <div class="form-row">
+          <button type="submit" [disabled]="paymentForm.invalid || loading">
+            Submit Payment
+          </button>
+        </div>
+      </form>
+    </ng-container>
+  </ng-container>
+</div>

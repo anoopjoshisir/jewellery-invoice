@@ -1,0 +1,60 @@
+<app-main-layout>
+  <div *ngIf="loading" class="dashboard-loading">Loading...</div>
+<div *ngIf="!loading && company" class="dashboard-wrapper">
+  <div class="dashboard-header">
+    <div>
+      <h2>{{ company.name }}</h2>
+      <div>{{ company.address }}</div>
+      <div>GSTIN: {{ company.gstin }}</div>
+    </div>
+    <img *ngIf="company.logoUrl" [src]="company.logoUrl" class="company-logo" />
+  </div>
+  <div class="dashboard-stats">
+    <div>
+      <div class="stat-label">Total Customers</div>
+      <div class="stat-value">{{ customers.length }}</div>
+    </div>
+    <div>
+      <div class="stat-label">Total Invoices</div>
+      <div class="stat-value">{{ invoices.length }}</div>
+    </div>
+    <div>
+      <div class="stat-label">Total Sales</div>
+      <div class="stat-value">{{ totalSales | number:'1.2-2' }}</div>
+    </div>
+    <div>
+      <div class="stat-label">Receivables</div>
+      <div class="stat-value">{{ totalReceivables | number:'1.2-2' }}</div>
+    </div>
+  </div>
+  <div class="dashboard-latest">
+    <h4>Latest Invoices</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Bill No</th>
+          <th>Date</th>
+          <th>Customer</th>
+          <th>Grand Total</th>
+          <th>Paid</th>
+          <th>Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let inv of latestInvoices">
+          <td>{{ inv.billNo }}</td>
+          <td>{{ inv.billDate }}</td>
+          <td>{{ inv.customer.name }}</td>
+          <td>{{ inv.grandTotal | number:'1.2-2' }}</td>
+          <td>{{ inv.amountPaid | number:'1.2-2' }}</td>
+          <td>{{ (inv.grandTotal - (inv.amountPaid || 0)) | number:'1.2-2' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div *ngIf="!loading && !company" class="dashboard-nocompany">
+  <h2>No company selected</h2>
+  <p>Please select a company from the main layout to view dashboard data.</p>
+</div>
+</app-main-layout>

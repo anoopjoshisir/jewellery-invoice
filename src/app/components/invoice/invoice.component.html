@@ -1,0 +1,135 @@
+<app-main-layout>
+<form [formGroup]="invoiceForm" (ngSubmit)="saveInvoice()" class="invoice-form">
+  <div>
+    <input type="checkbox" [(ngModel)]="manualBillNo"  [ngModelOptions]="{standalone: true}"/> <label>Manual Bill No?</label>
+  </div>
+  <div class="form-group">
+    <input type="text" formControlName="billNo" [readonly]="!manualBillNo" />
+    <label for="billNo">Bill No</label>
+  </div>
+  <div class="form-group">
+    <input type="date" formControlName="billDate" id="billDate" />
+    <label for="billDate">Bill Date</label>
+  </div>
+  <div class="form-group">
+    <input type="date" formControlName="dueDate" id="dueDate" />
+    <label for="dueDate">Due Date</label>
+  </div>
+  <div class="form-group">
+    <input type="text" [value]="invoiceForm.value.customer?.name || ''" readonly (click)="openCustomerPopup()" id="customer" />
+    <label for="customer">Customer</label>
+    <div class="popup" *ngIf="showCustomerPopup">
+      <input type="text" placeholder="Search..." (input)="filterCustomers($event.target)" />
+      <ul>
+        <li *ngFor="let c of filteredCustomers" (click)="selectCustomer(c)">
+          {{c.name}} <span *ngIf="c.mobile">({{c.mobile}})</span>
+        </li>
+      </ul>
+      <button type="button" (click)="showCustomerPopup=false">Close</button>
+    </div>
+  </div>
+  <div class="form-group">
+    <input type="text" [value]="invoiceForm.value.company?.name || ''" readonly (click)="openCompanyPopup()" id="company" />
+    <label for="company">Company</label>
+    <div class="popup" *ngIf="showCompanyPopup">
+      <input type="text" placeholder="Search..." (input)="filterCompanies($event.target)" />
+      <ul>
+        <li *ngFor="let c of filteredCompanies" (click)="selectCompany(c)">
+          {{c.name}} <span *ngIf="c.mobile">({{c.mobile}})</span>
+        </li>
+      </ul>
+      <button type="button" (click)="showCompanyPopup=false">Close</button>
+    </div>
+  </div>
+  <div class="form-group" *ngIf="!company?.hideInvoiceFields?.includes('discountOnGoldWeight')">
+    <input type="number" formControlName="discountOnGoldWeight" id="discountOnGoldWeight" />
+    <label for="discountOnGoldWeight">Discount on Gold Weight</label>
+  </div>
+  <div class="form-group">
+    <select formControlName="discountType" id="discountType">
+      <option *ngFor="let t of discountTypes" [value]="t.value">{{t.label}}</option>
+    </select>
+    <label for="discountType">Making Discount Type</label>
+  </div>
+  <div class="form-group">
+    <input type="number" formControlName="discountValue" id="discountValue" />
+    <label for="discountValue">Making Discount Value</label>
+  </div>
+
+  <div class="item-table-wrap">
+    <h4>Items</h4>
+    <div formArrayName="items">
+      <div class="item-row" *ngFor="let item of items.controls; index as i" [formGroupName]="i">
+        <div class="form-group" *ngIf="!company?.hideItemFields?.includes('name')">
+          <input type="text" formControlName="name" />
+          <label>Item Name</label>
+        </div>
+        <div class="form-group" *ngIf="!company?.hideItemFields?.includes('purity')">
+          <input type="text" formControlName="purity" />
+          <label>Purity</label>
+        </div>
+        <div class="form-group" *ngIf="!company?.hideItemFields?.includes('qty')">
+          <input type="number" formControlName="qty" min="1" />
+          <label>Qty</label>
+        </div>
+        <div class="form-group" *ngIf="!company?.hideItemFields?.includes('rate')">
+          <input type="number" formControlName="rate" min="0" />
+          <label>Rate</label>
+        </div>
+        <div class="form-group" *ngIf="!company?.hideItemFields?.includes('makingCharges')">
+          <input type="number" formControlName="makingCharges" min="0" />
+          <label>Making Charges</label>
+        </div>
+        <button type="button" (click)="removeItem(i)" [disabled]="items.length===1">🗑️</button>
+      </div>
+      <button type="button" (click)="addItem()">+ Add Item</button>
+    </div>
+  </div>
+
+  <div class="item-table-wrap">
+    <h4>Payments</h4>
+    <div formArrayName="payments">
+      <div class="payment-row" *ngFor="let pmt of payments.controls; index as i" [formGroupName]="i">
+        <div class="form-group">
+          <input type="date" formControlName="date" />
+          <label>Date</label>
+        </div>
+        <div class="form-group">
+          <input type="number" formControlName="amount" min="0" />
+          <label>Amount</label>
+        </div>
+        <div class="form-group">
+          <select formControlName="mode">
+            <option value="cash">Cash</option>
+            <option value="upi">UPI</option>
+            <option value="card">Card</option>
+            <option value="bank">Bank</option>
+          </select>
+          <label>Mode</label>
+        </div>
+        <div class="form-group">
+          <input type="text" formControlName="note" />
+          <label>Note</label>
+        </div>
+        <button type="button" (click)="removePayment(i)">🗑️</button>
+      </div>
+      <button type="button" (click)="addPayment()">+ Add Payment</button>
+    </div>
+  </div>
+
+  <div class="summary-row">
+    <div>Total: <b>{{ total | number:'1.2-2' }}</b></div>
+    <div>Making Charges: <b>{{ makingCharges | number:'1.2-2' }}</b></div>
+    <div *ngIf="!company?.hideInvoiceFields?.includes('discountOnGoldWeight')">
+      Discount on Gold Weight: <b>{{ discountOnGoldWeight | number:'1.2-2' }}</b>
+    </div>
+    <div>Making Discount: <b>{{ makingDiscount | number:'1.2-2' }}</b></div>
+    <div><b>Total Discount:</b> {{ totalDiscount | number:'1.2-2' }}</div>
+    <div>Grand Total: <b>{{ grandTotal | number:'1.2-2' }}</b></div>
+    <div>Amount Paid: <b>{{ amountPaid | number:'1.2-2' }}</b></div>
+    <div>Balance: <b>{{ grandTotal - amountPaid | number:'1.2-2' }}</b></div>
+  </div>
+
+  <button type="submit" [disabled]="invoiceForm.invalid">Save Invoice</button>
+</form>
+</app-main-layout>

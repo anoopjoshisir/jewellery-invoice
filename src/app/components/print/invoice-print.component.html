@@ -1,0 +1,151 @@
+<app-main-layout>
+    <style id="print-style">
+        @import './invoice-print.component.scss';
+    </style>
+    <!-- Customer and Invoice Selection UI if invoice is not passed -->
+    <div *ngIf="!invoice">
+        <div class="invoice-picker">
+            <label for="customerSelector">Customer:</label>
+            <select id="customerSelector" [(ngModel)]="selectedCustomerId" (change)="onCustomerChange()">
+                <option value="">All</option>
+                <option *ngFor="let c of customers" [value]="c.id">{{c.name}}</option>
+            </select>
+            <label for="invoiceSelector">Select Invoice:</label>
+            <select id="invoiceSelector" [(ngModel)]="selectedInvoiceId" (change)="onInvoiceSelect($event)">
+                <option value="">--Select Invoice--</option>
+                <option *ngFor="let inv of filteredInvoices" [value]="inv.id">
+                    {{inv.billNo}} - {{inv.customer.name}}
+                </option>
+            </select>
+        </div>
+    </div>
+    <div class="print-actions" *ngIf="invoice">
+        <button (click)="printInvoice()">🖨️ Print</button>
+        <button (click)="printThermal()">Print (Thermal Printer)</button>
+        <button (click)="exportToPDF()">⬇️ PDF</button>
+        <button (click)="shareInvoice()">🔗 Share</button>
+    </div>
+    <div id="print-area" *ngIf="invoice">
+        <div class="print-wrapper">
+            <div class="header">
+                <div class="company-info">
+                    <img *ngIf="invoice.company?.logoUrl" [src]="invoice.company.logoUrl" alt="Logo"
+                        class="company-logo" />
+                    <div>
+                        <h2>{{ invoice.company.name }}</h2>
+                        <div>{{ invoice.company.address }}</div>
+                        <div>Mobile: {{ invoice.company.mobile }}</div>
+                        <div>GSTIN: {{ invoice.company.gstin }}</div>
+                        <div>Email: {{ invoice.company.email }}</div>
+                    </div>
+                </div>
+                <div class="bill-info">
+                    <div><b>Bill No:</b> {{ invoice.billNo }}</div>
+                    <div><b>Date:</b> {{ invoice.billDate }}</div>
+                    <div><b>Due Date:</b> {{ invoice.dueDate }}</div>
+                </div>
+            </div>
+            <hr />
+            <div class="customer-info">
+                <div><b>Customer:</b> {{ invoice.customer.name }}</div>
+                <div><b>Address:</b> {{ invoice.customer.address }}</div>
+                <div><b>Mobile:</b> {{ invoice.customer.mobile }}</div>
+                <div><b>Email:</b> {{ invoice.customer.email }}</div>
+            </div>
+            <hr />
+
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th *ngIf="!company?.hidePrintItemFields?.includes('name')">Item</th>
+                        <th *ngIf="!company?.hidePrintItemFields?.includes('purity')">Purity</th>
+                        <th *ngIf="!company?.hidePrintItemFields?.includes('qty')">Qty</th>
+                        <th *ngIf="!company?.hidePrintItemFields?.includes('rate')">Rate</th>
+                        <th>Amount</th>
+                        <th *ngIf="!company?.hidePrintItemFields?.includes('makingCharges')">Making Charges</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let item of invoice.items; let i = index">
+                        <td>{{ i + 1 }}</td>
+                        <td *ngIf="!company?.hidePrintItemFields?.includes('name')">{{ item.name }}</td>
+                        <td *ngIf="!company?.hidePrintItemFields?.includes('purity')">{{ item.purity }}</td>
+                        <td *ngIf="!company?.hidePrintItemFields?.includes('qty')">{{ item.qty }}</td>
+                        <td *ngIf="!company?.hidePrintItemFields?.includes('rate')">{{ item.rate | number:'1.2-2' }}
+                        </td>
+                        <td>{{ (item.qty * item.rate) | number:'1.2-2' }}</td>
+                        <td *ngIf="!company?.hidePrintItemFields?.includes('makingCharges')">{{ item.makingCharges |
+                            number:'1.2-2' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <hr />
+
+            <div class="summary-table">
+                <table>
+                    <tr>
+                        <td><b>Total</b></td>
+                        <td>{{ invoice.total | number:'1.2-2' }}</td>
+                    </tr>
+                    <tr>
+                        <td><b>Making Charges</b></td>
+                        <td>{{ invoice.makingCharges | number:'1.2-2' }}</td>
+                    </tr>
+                    <tr *ngIf="!company?.hidePrintInvoiceFields?.includes('discountOnGoldWeight')">
+                        <td><b>Discount on Gold Weight</b></td>
+                        <td>{{ invoice.discountOnGoldWeight | number:'1.2-2' }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <b>Making Discount</b>
+                            <span *ngIf="invoice.discountType==='percent'">({{ invoice.discountValue }}%)</span>
+                            <span *ngIf="invoice.discountType==='fixedPerPiece'">({{ invoice.discountValue }} per
+                                piece)</span>
+                            <span *ngIf="invoice.discountType==='fixedBill'">({{ invoice.discountValue }} fixed)</span>
+                        </td>
+                        <td>{{ invoice.makingDiscount | number:'1.2-2' }}</td>
+                    </tr>
+                    <tr>
+                        <td><b>Total Discount</b></td>
+                        <td>{{ invoice.totalDiscount | number:'1.2-2' }}</td>
+                    </tr>
+                    <tr>
+                        <td><b>Grand Total</b></td>
+                        <td>{{ invoice.grandTotal | number:'1.2-2' }}</td>
+                    </tr>
+                    <tr>
+                        <td><b>Amount Paid</b></td>
+                        <td>{{ invoice.amountPaid | number:'1.2-2' }}</td>
+                    </tr>
+                    <tr>
+                        <td><b>Balance</b></td>
+                        <td>{{ balance | number:'1.2-2' }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="payments-section" *ngIf="invoice.payments && invoice.payments.length">
+                <h4>Payments</h4>
+                <table>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Mode</th>
+                        <th>Note</th>
+                    </tr>
+                    <tr *ngFor="let p of invoice.payments">
+                        <td>{{ p.date }}</td>
+                        <td>{{ p.amount | number:'1.2-2' }}</td>
+                        <td>{{ p.mode }}</td>
+                        <td>{{ p.note }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="footer">
+                <div>Thank you for your business!</div>
+            </div>
+        </div>
+    </div>
+</app-main-layout>
