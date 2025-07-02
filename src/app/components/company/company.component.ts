@@ -5,10 +5,24 @@ import { Company } from '../../core/models/company.model';
 import { CommonModule } from '@angular/common';
 import { MainLayoutComponent } from '../main-layout/main-layout.component';
 
+// All invoice fields for hideInvoiceFields
+const INVOICE_FIELDS = [
+  { key: 'billNo', label: 'Bill No' },
+  { key: 'billDate', label: 'Bill Date' },
+  { key: 'discountOnGoldWeight', label: 'Discount' },
+];
+
+// All possible fields of Invoice Item for hideItemFields
+const INVOICE_ITEM_FIELDS = [
+  { key: 'itempurity', label: 'Purity' },
+  { key: 'itemnakingcharges', label: 'Making Charges' },
+  { key: 'itemhsn', label: 'HSN' },
+];
+
 @Component({
   selector: 'app-company',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule,MainLayoutComponent],
+  imports: [CommonModule, ReactiveFormsModule, MainLayoutComponent],
   templateUrl: './company.component.html',
   styleUrls: ['./company.component.scss']
 })
@@ -16,17 +30,18 @@ export class CompanyComponent implements OnInit {
   companies: Company[] = [];
   form: FormGroup;
   selectedId: string | null = null;
+  invoiceFields = INVOICE_FIELDS;
+  itemFields = INVOICE_ITEM_FIELDS;
 
   constructor(private fb: FormBuilder, private companyService: CompanyService) {
     this.form = this.fb.group({
       name: ['', Validators.required],
+      slogan: [''],
       address: ['', Validators.required],
       mobile: ['', Validators.required],
-      gstin: ['', Validators.required],
-      email: ['', [Validators.required, Validators.email]],
+      gstin: [''], // Not required
+      email: ['', [Validators.email]], // Not required, only pattern validated
       logoUrl: [''],
-      hideItemFields: [[]],
-      hideInvoiceFields: [[]],
       hidePrintItemFields: [[]],
       hidePrintInvoiceFields: [[]],
     });
@@ -60,5 +75,16 @@ export class CompanyComponent implements OnInit {
   async remove(id: string) {
     await this.companyService.delete(id);
     await this.loadCompanies();
+  }
+
+  onMultiCheckboxChange(controlName: string, key: string, checkedval:any ) {
+    const arr = this.form.get(controlName)?.value as string[];
+    if (checkedval.checked) {
+      if (!arr.includes(key)) arr.push(key);
+    } else {
+      const idx = arr.indexOf(key);
+      if (idx >= 0) arr.splice(idx, 1);
+    }
+    this.form.get(controlName)?.setValue([...arr]);
   }
 }

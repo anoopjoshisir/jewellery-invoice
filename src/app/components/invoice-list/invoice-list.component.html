@@ -1,0 +1,53 @@
+<app-main-layout>
+<div class="invoice-list-container">
+  <h1>Invoices</h1>
+  <div class="filter-row">
+    <label>
+      Customer:
+      <select [(ngModel)]="selectedCustomer" (change)="applyFilter()">
+        <option value="">All</option>
+        <option *ngFor="let customer of customers" [value]="customer">{{ customer }}</option>
+      </select>
+    </label>
+  </div>
+  <div *ngIf="loading" class="loading">Loading...</div>
+  <div *ngIf="!loading && filteredInvoices.length" class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Bill No</th>
+          <th>Bill Date</th>
+          <th>Customer</th>
+          <th>Item Details</th>
+          <th>Invoice Amount</th>
+          <th>Amount Paid</th>
+          <th>Balance</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let inv of filteredInvoices; let i = index">
+          <td>{{ i + 1 }}</td>
+          <td>{{ inv.billNo }}</td>
+          <td>{{ inv.billDate | date:'shortDate' }}</td>
+          <td>{{ inv.customer.name }}</td>
+          <td>{{ getItemSummary(inv) }}</td>
+          <td>{{ inv.total  | currency:'INR':'symbol' }}</td>
+          <td>{{ inv.amountPaid  | currency:'INR':'symbol' }}</td>
+          <td>{{ (inv.grandTotal - inv.amountPaid)  | currency:'INR':'symbol' }}</td>
+          <td>
+            <button mat-button color="primary" (click)="openInvoiceDetail(inv)">View</button>
+            <button mat-button color="accent" (click)="printInvoice(inv, 'normal')">Print</button>
+            <button mat-button color="accent" (click)="printInvoice(inv, 'thermal')">Thermal</button>
+            <button mat-button color="warn" (click)="exportAsPDF(inv)">PDF</button>
+            <button mat-button color="warn" (click)="exportAsImage(inv)">Image</button>
+            <button mat-button (click)="shareInvoice(inv)">Share</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div *ngIf="!loading && !filteredInvoices.length" class="no-data">No invoices found.</div>
+</div>
+</app-main-layout>

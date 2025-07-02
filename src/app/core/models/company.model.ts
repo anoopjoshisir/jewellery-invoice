@@ -1,6 +1,7 @@
 export interface Company {
   id?: string;
   name: string;
+  slogan?:string;
   address: string;
   mobile: string;
   gstin: string;

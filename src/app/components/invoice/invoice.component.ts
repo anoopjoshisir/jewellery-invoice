@@ -56,6 +56,7 @@ export class InvoiceComponent implements OnInit {
       discountType: ['percent'],
       discountValue: [0],
       items: this.fb.array([]),
+      remarks:[''],
       payments: this.fb.array([])
     });
   }
@@ -79,7 +80,7 @@ export class InvoiceComponent implements OnInit {
     this.items.push(this.fb.group({
       name: ['', Validators.required],
       purity: [''],
-      qty: [1, [Validators.required, Validators.min(1)]],
+      qty: [1, [Validators.required]],
       rate: [0, Validators.required],
       makingCharges: [0, Validators.required]
     }));
@@ -191,7 +192,8 @@ export class InvoiceComponent implements OnInit {
       entryDate: new Date().toISOString(),
       enteredBy: user?.uid || "",
       enteredByName: user?.displayName || "",
-      enteredByIp: ip
+      enteredByIp: ip,
+      remarks:form.remarks
     };
     await this.invoiceService.add(invoice);
     this.invoiceForm.reset({

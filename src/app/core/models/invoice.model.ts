@@ -36,4 +36,5 @@ export interface Invoice {
   enteredBy: string;
   enteredByName: string;
   enteredByIp: string;
+  remarks:string;
 }

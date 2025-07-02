@@ -1,38 +1,49 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { CommonModule } from '@angular/common';
+import { CompanyContextService } from '../../core/services/company-context.service';
 
 @Component({
   selector: 'app-login',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './login.component.html'
+  standalone:true,
+  imports:[CommonModule,FormsModule,ReactiveFormsModule],
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.scss']
 })
 export class LoginComponent {
-  email = '';
-  password = '';
-  error = '';
+  hidePassword = true;
+  loading = false;
+  loginForm !: FormGroup;
+  loginError = '';
 
-  constructor(private auth: AuthService, private router: Router) {}
 
-  async googleLogin() {
-    try {
-      await this.auth.googleSignIn();
-      this.router.navigate(['/dashboard']);
-    } catch (e) { alert(e); }
+  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router,private companyContext:CompanyContextService) {
+    this.loginForm = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required]],
+      rememberMe: [true]
+    });
   }
-  async reset() {
-    if (!this.email) { alert('Enter your email first.'); return; }
+
+  async onSubmit() {
+    this.loginError = '';
+    if (this.loginForm.invalid) return;
+    this.loading = true;
+    const { email, password, rememberMe } = this.loginForm.value;
     try {
-      await this.auth.sendPasswordReset(this.email);
-      alert('Password reset email sent.');
-    } catch (e) { alert(e); }
-  }
-  async login() {
-    this.auth.login(this.email, this.password)
-      .then(() => this.router.navigate(['/dashboard']))
-      .catch(err => this.error = err.message);
+      const user = await this.auth.login(email!, password!, rememberMe!);      
+      if (user) {
+        const selectedcompany = user && user.companies ? user.companies[0] : undefined;
+        this.companyContext.setSelectedCompany(selectedcompany!);
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.loginError = 'Invalid credentials';
+      }
+    } catch (e) {
+      this.loginError = 'Login failed. Please try again.';
+    }
+    this.loading = false;
   }
 }
