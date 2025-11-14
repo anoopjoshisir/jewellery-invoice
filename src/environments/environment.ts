@@ -1,5 +1,8 @@
 export const environment = {
     production: false,
+    // IMPORTANT: In production, use a strong encryption key and store it securely
+    // This key should be unique for your application
+    encryptionKey: 'JewelleryInvoiceDevEncryptionKey2025SecureApp',
     firebaseConfig: {
         apiKey: "AIzaSyDT3RNsO1qcDa62ya8LxcERbEvRdQKl97U",
         authDomain: "sjsm-25a3c.firebaseapp.com",

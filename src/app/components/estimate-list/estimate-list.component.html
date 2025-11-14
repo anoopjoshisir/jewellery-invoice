@@ -1,0 +1,91 @@
+<app-main-layout>
+<div class="estimate-list-container">
+  <h2>Estimates / Quotations</h2>
+
+  <div class="filter-controls">
+    <div class="form-group">
+      <select [(ngModel)]="selectedStatus" (change)="onStatusChange()" id="statusFilter">
+        <option *ngFor="let opt of statusOptions" [value]="opt.value">{{ opt.label }}</option>
+      </select>
+      <label for="statusFilter">Filter by Status</label>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <p>Loading estimates...</p>
+  </div>
+
+  <div *ngIf="!isLoading && filteredEstimates.length === 0" class="no-data">
+    <p>No estimates found.</p>
+  </div>
+
+  <div class="table-wrapper" *ngIf="!isLoading && filteredEstimates.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Estimate No</th>
+          <th>Customer</th>
+          <th>Date</th>
+          <th>Valid Until</th>
+          <th>Grand Total</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let estimate of filteredEstimates" [class.expired]="isExpired(estimate)">
+          <td>{{ estimate.estimateNo }}</td>
+          <td>
+            <div>{{ estimate.customer.name }}</div>
+            <small *ngIf="estimate.customer.mobile">{{ estimate.customer.mobile }}</small>
+          </td>
+          <td>{{ estimate.estimateDate | date:'dd/MM/yyyy' }}</td>
+          <td>
+            {{ estimate.validUntil | date:'dd/MM/yyyy' }}
+            <span *ngIf="isExpired(estimate)" class="expired-badge">Expired</span>
+          </td>
+          <td><strong>{{ estimate.grandTotal | number:'1.2-2' }}</strong></td>
+          <td>
+            <span class="badge" [ngClass]="getStatusBadgeClass(estimate.status)">
+              {{ estimate.status | titlecase }}
+            </span>
+          </td>
+          <td class="actions">
+            <button
+              *ngIf="estimate.status === 'pending'"
+              (click)="updateEstimateStatus(estimate, 'accepted')"
+              class="btn-accept"
+              title="Accept Estimate">
+              ✓ Accept
+            </button>
+            <button
+              *ngIf="estimate.status === 'pending'"
+              (click)="updateEstimateStatus(estimate, 'rejected')"
+              class="btn-reject"
+              title="Reject Estimate">
+              ✗ Reject
+            </button>
+            <button
+              *ngIf="estimate.status !== 'converted' && estimate.status !== 'rejected'"
+              (click)="convertToInvoice(estimate)"
+              class="btn-convert"
+              title="Convert to Invoice">
+              Convert to Invoice
+            </button>
+            <button
+              *ngIf="estimate.status !== 'converted'"
+              (click)="deleteEstimate(estimate)"
+              class="btn-delete"
+              title="Delete Estimate">
+              🗑️ Delete
+            </button>
+            <span *ngIf="estimate.status === 'converted'" class="converted-info">
+              Converted
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</app-main-layout>

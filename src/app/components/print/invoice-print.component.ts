@@ -40,8 +40,7 @@ export class InvoicePrintComponent implements OnInit {
     }
 
     async ngOnInit() {
-        debugger;
-        const companies = await this.companyService.getByIds([this.invoice?.company.id || ""]);        
+        const companies = await this.companyService.getByIds([this.invoice?.company.id || ""]);
         if (companies.length > 0) {
             this.company=companies[0];
             this.hideInvoiceFields = this.company.hidePrintInvoiceFields || [];
@@ -51,7 +50,6 @@ export class InvoicePrintComponent implements OnInit {
              this.hideInvoiceFields = [];
             this.hideItemFields = [];
         }
-        console.log(this.hideItemFields);
         if (this.exportType === 'pdf') {
             setTimeout(() => this.exportAsPDF(), 0);
         }

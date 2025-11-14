@@ -5,13 +5,15 @@ import { LoginComponent } from './components/login/login.component';
 import { NoteListComponent } from './components/note/note-list.component';
 import { InvoiceComponent } from './components/invoice/invoice.component';
 import { LedgerComponent } from './components/ledger/ledger.component';
-import { AuthGuard } from './core/gaurds/auth.gaurd';
+import { AuthGuard } from './core/guards/auth.guard';
 import { CompanyComponent } from './components/company/company.component';
 import { InvoicePrintComponent } from './components/print/invoice-print.component';
 import { UserComponent } from './components/user/user.component';
 import { PaymentComponent } from './components/payment/payment.component';
 import { NotFoundComponent } from './components/not-found/not-found.component';
 import { InvoiceListComponent } from './components/invoice-list/invoice-list.component';
+import { EstimateComponent } from './components/estimate/estimate.component';
+import { EstimateListComponent } from './components/estimate-list/estimate-list.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -41,6 +43,16 @@ export const routes: Routes = [
   {
     path: 'invoicelist',
     component: InvoiceListComponent,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'estimates',
+    component: EstimateComponent,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'estimatelist',
+    component: EstimateListComponent,
     canActivate: [AuthGuard]
   },
   {

@@ -2,10 +2,10 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { Customer } from '../../core/models/customer.model';
 import { Company } from '../../core/models/company.model';
-import { Invoice } from '../../core/models/invoice.model';
+import { Estimate } from '../../core/models/estimate.model';
 import { CustomerService } from '../../core/services/customer.service';
 import { CompanyService } from '../../core/services/company.service';
-import { InvoiceService } from '../../core/services/invoice.service';
+import { EstimateService } from '../../core/services/estimate.service';
 import { CompanyContextService } from '../../core/services/company-context.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -15,22 +15,22 @@ import { MainLayoutComponent } from '../main-layout/main-layout.component';
 type DiscountType = 'percent' | 'fixedPerPiece' | 'fixedBill';
 
 @Component({
-  selector: 'app-invoice',
+  selector: 'app-estimate',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule,MainLayoutComponent],
-  templateUrl: './invoice.component.html',
-  styleUrls: ['./invoice.component.scss']
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, MainLayoutComponent],
+  templateUrl: './estimate.component.html',
+  styleUrls: ['./estimate.component.scss']
 })
-export class InvoiceComponent implements OnInit {
+export class EstimateComponent implements OnInit {
   customers: Customer[] = [];
   companies: Company[] = [];
   filteredCustomers: Customer[] = [];
   filteredCompanies: Company[] = [];
 
-  invoiceForm: FormGroup;
+  estimateForm: FormGroup;
   showCustomerPopup = false;
   showCompanyPopup = false;
-  manualBillNo:boolean = false;
+  manualEstimateNo: boolean = false;
   company: Company | null = null;
   isLoading = false;
   isSaving = false;
@@ -45,23 +45,22 @@ export class InvoiceComponent implements OnInit {
     private fb: FormBuilder,
     private customerService: CustomerService,
     private companyService: CompanyService,
-    private invoiceService: InvoiceService,
+    private estimateService: EstimateService,
     private companyContext: CompanyContextService,
     private auth: AuthService,
     private notification: NotificationService
   ) {
-    this.invoiceForm = this.fb.group({
-      billNo: ['', Validators.required],
-      billDate: [this.formatDate(new Date()), Validators.required],
-      dueDate: [this.formatDate(this.addDays(new Date(), 30)), Validators.required],
+    this.estimateForm = this.fb.group({
+      estimateNo: ['', Validators.required],
+      estimateDate: [this.formatDate(new Date()), Validators.required],
+      validUntil: [this.formatDate(this.addDays(new Date(), 30)), Validators.required],
       customer: [null, Validators.required],
       company: [null, Validators.required],
       discountOnGoldWeight: [0],
       discountType: ['percent'],
       discountValue: [0],
       items: this.fb.array([]),
-      remarks:[''],
-      payments: this.fb.array([])
+      remarks: ['']
     });
   }
 
@@ -80,19 +79,18 @@ export class InvoiceComponent implements OnInit {
       this.companies = await this.companyService.getByIds([companyId]);
       this.company = this.companies[0] || null;
       this.filteredCompanies = [...this.companies];
-      this.invoiceForm.patchValue({ company: this.company });
+      this.estimateForm.patchValue({ company: this.company });
 
       this.addItem();
     } catch (error) {
-      console.error('Error loading invoice form:', error);
-      this.notification.error('Failed to load invoice form. Please refresh the page.');
+      console.error('Error loading estimate form:', error);
+      this.notification.error('Failed to load estimate form. Please refresh the page.');
     } finally {
       this.isLoading = false;
     }
   }
 
-  get items(): FormArray { return this.invoiceForm.get('items') as FormArray; }
-  get payments(): FormArray { return this.invoiceForm.get('payments') as FormArray; }
+  get items(): FormArray { return this.estimateForm.get('items') as FormArray; }
 
   addItem() {
     this.items.push(this.fb.group({
@@ -103,26 +101,19 @@ export class InvoiceComponent implements OnInit {
       makingCharges: [0, [Validators.required, Validators.min(0)]]
     }));
   }
-  removeItem(i: number) { if (this.items.length > 1) this.items.removeAt(i); }
 
-  addPayment() {
-    this.payments.push(this.fb.group({
-      date: [this.formatDate(new Date()), Validators.required],
-      amount: [0, Validators.required],
-      mode: ['cash'],
-      note: ['']
-    }));
-  }
-  removePayment(i: number) { this.payments.removeAt(i); }
+  removeItem(i: number) { if (this.items.length > 1) this.items.removeAt(i); }
 
   openCustomerPopup() {
     this.showCustomerPopup = true;
     this.filteredCustomers = [...this.customers];
   }
+
   selectCustomer(c: Customer) {
-    this.invoiceForm.patchValue({ customer: c });
+    this.estimateForm.patchValue({ customer: c });
     this.showCustomerPopup = false;
   }
+
   filterCustomers(term: any) {
     this.filteredCustomers = this.customers.filter(c =>
       c.name.toLowerCase().includes(term.value.toLowerCase()) ||
@@ -134,10 +125,12 @@ export class InvoiceComponent implements OnInit {
     this.showCompanyPopup = true;
     this.filteredCompanies = [...this.companies];
   }
+
   selectCompany(c: Company) {
-    this.invoiceForm.patchValue({ company: c });
+    this.estimateForm.patchValue({ company: c });
     this.showCompanyPopup = false;
   }
+
   filterCompanies(term: any) {
     this.filteredCompanies = this.companies.filter(c =>
       c.name.toLowerCase().includes(term.value.toLowerCase()) ||
@@ -150,49 +143,49 @@ export class InvoiceComponent implements OnInit {
       .map(ctrl => (Number(ctrl.get('qty')?.value) || 0) * (Number(ctrl.get('rate')?.value) || 0))
       .reduce((a, b) => a + b, 0);
   }
+
   get discountOnGoldWeight(): number {
-    return Number(this.invoiceForm.get('discountOnGoldWeight')?.value) || 0;
+    return Number(this.estimateForm.get('discountOnGoldWeight')?.value) || 0;
   }
+
   get makingCharges(): number {
     return this.items.controls
       .map(ctrl => Number(ctrl.get('makingCharges')?.value) || 0)
       .reduce((a, b) => a + b, 0);
   }
+
   get makingDiscount(): number {
-    const type: DiscountType = this.invoiceForm.get('discountType')?.value;
-    const value: number = +this.invoiceForm.get('discountValue')?.value || 0;
+    const type: DiscountType = this.estimateForm.get('discountType')?.value;
+    const value: number = +this.estimateForm.get('discountValue')?.value || 0;
     if (type === 'percent') return this.makingCharges * (value / 100);
     if (type === 'fixedPerPiece') return this.items.length * value;
     if (type === 'fixedBill') return value;
     return 0;
   }
+
   get totalDiscount(): number {
     return this.discountOnGoldWeight + this.makingDiscount;
   }
+
   get grandTotal(): number {
     return this.total + this.makingCharges - this.totalDiscount;
   }
-  get amountPaid(): number {
-    return this.payments.controls
-      .map(ctrl => Number(ctrl.get('amount')?.value) || 0)
-      .reduce((a, b) => a + b, 0);
-  }
 
-  async saveInvoice() {
+  async saveEstimate() {
     // Validate form
-    if (this.invoiceForm.invalid) {
+    if (this.estimateForm.invalid) {
       this.notification.error('Please fill all required fields correctly.');
       return;
     }
 
     // Validate at least one item
     if (this.items.length === 0) {
-      this.notification.error('Please add at least one item to the invoice.');
+      this.notification.error('Please add at least one item to the estimate.');
       return;
     }
 
     // Validate customer selected
-    const form = this.invoiceForm.value;
+    const form = this.estimateForm.value;
     if (!form.customer) {
       this.notification.error('Please select a customer.');
       return;
@@ -207,11 +200,11 @@ export class InvoiceComponent implements OnInit {
     try {
       this.isSaving = true;
 
-      let billNo = form.billNo;
-      if (!this.manualBillNo) {
-        billNo = await this.invoiceService.generateNextBillNo(
-          this.companyContext.getSelectedCompanyValue()||"",
-          new Date(form.billDate).getFullYear()
+      let estimateNo = form.estimateNo;
+      if (!this.manualEstimateNo) {
+        estimateNo = await this.estimateService.generateNextEstimateNo(
+          this.companyContext.getSelectedCompanyValue() || "",
+          new Date(form.estimateDate).getFullYear()
         );
       }
 
@@ -222,14 +215,13 @@ export class InvoiceComponent implements OnInit {
       }
 
       const ip = await this.auth.getIp();
-      const invoice: Invoice = {
-        billNo,
+      const estimate: Estimate = {
+        estimateNo,
         customer: form.customer,
         company: form.company,
-        billDate: form.billDate,
-        dueDate: form.dueDate,
+        estimateDate: form.estimateDate,
+        validUntil: form.validUntil,
         items: form.items,
-        payments: form.payments,
         makingCharges: this.makingCharges,
         makingDiscount: this.makingDiscount,
         discountType: form.discountType,
@@ -237,21 +229,21 @@ export class InvoiceComponent implements OnInit {
         total: this.total,
         discountOnGoldWeight: this.discountOnGoldWeight,
         totalDiscount: this.totalDiscount,
-        amountPaid: this.amountPaid,
         grandTotal: this.grandTotal,
+        status: 'pending',
+        remarks: form.remarks,
         entryDate: new Date().toISOString(),
         enteredBy: user.uid,
         enteredByName: user.displayName || user.name || "",
-        enteredByIp: ip,
-        remarks: form.remarks
+        enteredByIp: ip
       };
 
-      await this.invoiceService.add(invoice);
+      await this.estimateService.add(estimate);
 
       // Reset form
-      this.invoiceForm.reset({
-        billDate: this.formatDate(new Date()),
-        dueDate: this.formatDate(this.addDays(new Date(), 30)),
+      this.estimateForm.reset({
+        estimateDate: this.formatDate(new Date()),
+        validUntil: this.formatDate(this.addDays(new Date(), 30)),
         discountType: 'percent',
         discountValue: 0,
         discountOnGoldWeight: 0,
@@ -259,12 +251,11 @@ export class InvoiceComponent implements OnInit {
       });
       this.items.clear();
       this.addItem();
-      this.payments.clear();
 
-      this.notification.success(`Invoice ${billNo} saved successfully!`);
+      this.notification.success(`Estimate ${estimateNo} saved successfully!`);
     } catch (error) {
-      console.error('Error saving invoice:', error);
-      this.notification.error('Failed to save invoice. Please try again.');
+      console.error('Error saving estimate:', error);
+      this.notification.error('Failed to save estimate. Please try again.');
     } finally {
       this.isSaving = false;
     }
@@ -273,6 +264,7 @@ export class InvoiceComponent implements OnInit {
   formatDate(date: Date): string {
     return date.toISOString().substring(0, 10);
   }
+
   addDays(date: Date, days: number): Date {
     const d = new Date(date.valueOf());
     d.setDate(d.getDate() + days);

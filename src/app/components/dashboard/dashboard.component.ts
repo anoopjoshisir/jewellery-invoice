@@ -4,6 +4,7 @@ import { Invoice } from '../../core/models/invoice.model';
 import { MatDialog } from '@angular/material/dialog';
 import { InvoicePrintComponent } from '../print/invoice-print.component';
 import { CompanyContextService } from '../../core/services/company-context.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MainLayoutComponent } from '../main-layout/main-layout.component';
@@ -47,7 +48,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   constructor(
     private invoiceService: InvoiceService,
     private companyContext: CompanyContextService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private notification: NotificationService
   ) {
     this.companyId = this.companyContext.getSelectedCompanyValue() || "";
   }
@@ -80,15 +82,32 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   async fetchInvoices() {
-    this.loading = true;
-    // Fetch only filtered invoices from Firestore
-    this.invoices = await this.invoiceService.getInvoicesByYearMonth(this.companyId, this.selectedYear, this.selectedMonth);
-    this.updateDashboardStats();
-    this.loading = false;
+    try {
+      this.loading = true;
+
+      if (!this.companyId) {
+        this.notification.error('No company selected. Please select a company first.');
+        return;
+      }
+
+      // Fetch only filtered invoices from Firestore
+      this.invoices = await this.invoiceService.getInvoicesByYearMonth(
+        this.companyId,
+        this.selectedYear,
+        this.selectedMonth
+      );
+      this.updateDashboardStats();
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      this.notification.error('Failed to load invoices. Please try again.');
+      this.invoices = [];
+      this.updateDashboardStats();
+    } finally {
+      this.loading = false;
+    }
   }
 
   updateDashboardStats() {
-    debugger;
     this.filteredInvoices = this.invoices.slice();
     this.invoiceCount = this.filteredInvoices.length;
     this.totalSales = this.filteredInvoices.reduce((sum, i) => sum + (i.grandTotal || 0), 0);
