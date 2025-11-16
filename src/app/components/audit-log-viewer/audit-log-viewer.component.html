@@ -1,0 +1,463 @@
+<div class="audit-log-viewer">
+  <!-- Header -->
+  <div class="viewer-header">
+    <div class="header-content">
+      <button class="btn-back" routerLink="/super-admin/dashboard">
+        ← Back to Dashboard
+      </button>
+      <div class="header-info">
+        <h1>📜 Audit Log Viewer</h1>
+        <p class="subtitle">View and analyze system activity logs</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="showFilters = !showFilters">
+        {{ showFilters ? '◀ Hide Filters' : '▶ Show Filters' }}
+      </button>
+      <button class="btn btn-primary" (click)="exportToCSV()" [disabled]="isExporting">
+        {{ isExporting ? '📥 Exporting...' : '📥 Export CSV' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="viewer-content">
+    <!-- Filter Panel -->
+    <div class="filter-panel" *ngIf="showFilters">
+      <div class="panel-header">
+        <h3>🔍 Filters</h3>
+        <div class="panel-actions">
+          <button class="btn btn-outline btn-sm" (click)="clearFilters()">
+            Clear All
+          </button>
+          <button class="btn btn-primary btn-sm" (click)="applyFilters()">
+            Apply Filters
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <!-- Date Range -->
+        <div class="filter-group">
+          <label>Date Range</label>
+          <div class="date-range">
+            <input
+              type="date"
+              [(ngModel)]="filterPanel.startDate"
+              class="filter-input">
+            <span>to</span>
+            <input
+              type="date"
+              [(ngModel)]="filterPanel.endDate"
+              class="filter-input">
+          </div>
+        </div>
+
+        <!-- User & Tenant -->
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>User ID</label>
+            <input
+              type="text"
+              [(ngModel)]="filterPanel.userId"
+              placeholder="Filter by user ID..."
+              class="filter-input">
+          </div>
+          <div class="filter-group">
+            <label>Tenant ID</label>
+            <input
+              type="text"
+              [(ngModel)]="filterPanel.tenantId"
+              placeholder="Filter by tenant ID..."
+              class="filter-input">
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="filter-group">
+          <label>Actions ({{ filterPanel.selectedActions.length }} selected)</label>
+          <div class="checkbox-grid">
+            <label
+              *ngFor="let action of availableActions"
+              class="checkbox-label">
+              <input
+                type="checkbox"
+                [checked]="filterPanel.selectedActions.includes(action)"
+                (change)="toggleAction(action)">
+              <span>{{ getActionLabel(action) }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Modules -->
+        <div class="filter-group">
+          <label>Modules ({{ filterPanel.selectedModules.length }} selected)</label>
+          <div class="checkbox-grid">
+            <label
+              *ngFor="let module of availableModules"
+              class="checkbox-label">
+              <input
+                type="checkbox"
+                [checked]="filterPanel.selectedModules.includes(module)"
+                (change)="toggleModule(module)">
+              <span>{{ getModuleLabel(module) }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Severity -->
+        <div class="filter-group">
+          <label>Severity ({{ filterPanel.selectedSeverity.length }} selected)</label>
+          <div class="checkbox-grid">
+            <label
+              *ngFor="let severity of availableSeverity"
+              class="checkbox-label">
+              <input
+                type="checkbox"
+                [checked]="filterPanel.selectedSeverity.includes(severity)"
+                (change)="toggleSeverity(severity)">
+              <span class="severity-badge" [ngClass]="getSeverityClass(severity)">
+                {{ severity }}
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Status Filters -->
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Super Admin Only</label>
+            <select [(ngModel)]="filterPanel.isSuperAdmin" class="filter-select">
+              <option [ngValue]="undefined">All</option>
+              <option [ngValue]="true">Yes</option>
+              <option [ngValue]="false">No</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Status</label>
+            <select [(ngModel)]="filterPanel.success" class="filter-select">
+              <option [ngValue]="undefined">All</option>
+              <option [ngValue]="true">Success</option>
+              <option [ngValue]="false">Failed</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Requires Review</label>
+            <select [(ngModel)]="filterPanel.requiresReview" class="filter-select">
+              <option [ngValue]="undefined">All</option>
+              <option [ngValue]="true">Yes</option>
+              <option [ngValue]="false">No</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Search -->
+        <div class="filter-group">
+          <label>Search</label>
+          <div class="search-box">
+            <input
+              type="text"
+              [(ngModel)]="filterPanel.searchTerm"
+              placeholder="Search in description, user, tenant..."
+              class="filter-input"
+              (keyup.enter)="search()">
+            <button class="btn btn-primary btn-sm" (click)="search()">
+              🔍 Search
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" [class.full-width]="!showFilters">
+      <!-- Summary Statistics -->
+      <div class="summary-section" *ngIf="summary">
+        <h3>📊 Summary Statistics</h3>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-value">{{ summary.totalLogs }}</div>
+            <div class="summary-label">Total Logs</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value">{{ summary.failedActions }}</div>
+            <div class="summary-label">Failed Actions</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value">{{ summary.requiresReview }}</div>
+            <div class="summary-label">Requires Review</div>
+          </div>
+        </div>
+
+        <div class="summary-details">
+          <div class="summary-detail" *ngIf="summary.byModule.length > 0">
+            <h4>By Module</h4>
+            <div class="detail-list">
+              <div *ngFor="let item of summary.byModule.slice(0, 5)" class="detail-item">
+                <span class="detail-name">{{ getModuleLabel(item.module) }}</span>
+                <span class="detail-count">{{ item.count }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-detail" *ngIf="summary.bySeverity.length > 0">
+            <h4>By Severity</h4>
+            <div class="detail-list">
+              <div *ngFor="let item of summary.bySeverity" class="detail-item">
+                <span class="severity-badge" [ngClass]="getSeverityClass(item.severity)">
+                  {{ item.severity }}
+                </span>
+                <span class="detail-count">{{ item.count }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading logs...</p>
+      </div>
+
+      <!-- Logs Table -->
+      <div *ngIf="!isLoading" class="logs-section">
+        <div class="section-header">
+          <h3>📋 Audit Logs ({{ logs.length }} of {{ totalLogs }})</h3>
+          <div class="pagination-controls">
+            <label>
+              Show:
+              <select [(ngModel)]="pageSize" (ngModelChange)="changePageSize($event)" class="page-size-select">
+                <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="logs-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;"></th>
+                <th (click)="sort('timestamp')" class="sortable">
+                  Timestamp
+                  <span class="sort-indicator" *ngIf="sortColumn === 'timestamp'">
+                    {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                  </span>
+                </th>
+                <th (click)="sort('userName')" class="sortable">
+                  User
+                  <span class="sort-indicator" *ngIf="sortColumn === 'userName'">
+                    {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                  </span>
+                </th>
+                <th (click)="sort('action')" class="sortable">
+                  Action
+                  <span class="sort-indicator" *ngIf="sortColumn === 'action'">
+                    {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                  </span>
+                </th>
+                <th (click)="sort('module')" class="sortable">
+                  Module
+                  <span class="sort-indicator" *ngIf="sortColumn === 'module'">
+                    {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                  </span>
+                </th>
+                <th (click)="sort('severity')" class="sortable">
+                  Severity
+                  <span class="sort-indicator" *ngIf="sortColumn === 'severity'">
+                    {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                  </span>
+                </th>
+                <th>Description</th>
+                <th (click)="sort('success')" class="sortable">
+                  Status
+                  <span class="sort-indicator" *ngIf="sortColumn === 'success'">
+                    {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                  </span>
+                </th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngFor="let log of logs">
+                <!-- Main Row -->
+                <tr [class.expanded]="isRowExpanded(log.id!)" [class.failed]="!log.success">
+                  <td>
+                    <button class="btn-expand" (click)="toggleRow(log.id!)">
+                      {{ isRowExpanded(log.id!) ? '▼' : '▶' }}
+                    </button>
+                  </td>
+                  <td>{{ formatDateTime(log.timestamp) }}</td>
+                  <td>
+                    <div class="user-info">
+                      <strong>{{ log.userName }}</strong>
+                      <span *ngIf="log.isSuperAdmin" class="badge badge-admin">Admin</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="action-badge">{{ getActionLabel(log.action) }}</span>
+                  </td>
+                  <td>
+                    <span class="module-badge">{{ getModuleLabel(log.module) }}</span>
+                  </td>
+                  <td>
+                    <span class="severity-badge" [ngClass]="getSeverityClass(log.severity)">
+                      {{ log.severity }}
+                    </span>
+                  </td>
+                  <td class="description-cell">{{ log.description }}</td>
+                  <td>
+                    <span class="status-badge" [class.success]="log.success" [class.failed]="!log.success">
+                      {{ log.success ? '✓ Success' : '✗ Failed' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      *ngIf="log.requiresReview && !log.reviewedBy"
+                      class="btn-action"
+                      (click)="markAsReviewed(log)"
+                      title="Mark as Reviewed">
+                      ✓ Review
+                    </button>
+                    <span *ngIf="log.reviewedBy" class="reviewed-badge">
+                      ✓ Reviewed
+                    </span>
+                  </td>
+                </tr>
+
+                <!-- Expanded Detail Row -->
+                <tr *ngIf="isRowExpanded(log.id!)" class="detail-row">
+                  <td colspan="9">
+                    <div class="log-details">
+                      <div class="detail-section">
+                        <h4>Log Details</h4>
+                        <div class="detail-grid">
+                          <div class="detail-field">
+                            <span class="field-label">Log ID:</span>
+                            <span class="field-value">{{ log.id }}</span>
+                          </div>
+                          <div class="detail-field">
+                            <span class="field-label">User ID:</span>
+                            <span class="field-value">{{ log.userId }}</span>
+                          </div>
+                          <div class="detail-field">
+                            <span class="field-label">User Email:</span>
+                            <span class="field-value">{{ log.userEmail || '-' }}</span>
+                          </div>
+                          <div class="detail-field">
+                            <span class="field-label">User Role:</span>
+                            <span class="field-value">{{ log.userRole }}</span>
+                          </div>
+                          <div class="detail-field">
+                            <span class="field-label">Tenant:</span>
+                            <span class="field-value">{{ log.tenantName || log.tenantId || '-' }}</span>
+                          </div>
+                          <div class="detail-field">
+                            <span class="field-label">IP Address:</span>
+                            <span class="field-value">{{ log.ipAddress || '-' }}</span>
+                          </div>
+                          <div class="detail-field">
+                            <span class="field-label">User Agent:</span>
+                            <span class="field-value">{{ log.userAgent || '-' }}</span>
+                          </div>
+                          <div class="detail-field">
+                            <span class="field-label">Request ID:</span>
+                            <span class="field-value">{{ log.requestId || '-' }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="detail-section" *ngIf="log.changes && log.changes.length > 0">
+                        <h4>Changes</h4>
+                        <div class="changes-list">
+                          <div *ngFor="let change of log.changes" class="change-item">
+                            <strong>{{ change.field }}:</strong>
+                            <div class="change-values">
+                              <span class="old-value">{{ change.oldValue }}</span>
+                              <span class="arrow">→</span>
+                              <span class="new-value">{{ change.newValue }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="detail-section" *ngIf="!log.success && log.errorMessage">
+                        <h4>Error Details</h4>
+                        <div class="error-message">{{ log.errorMessage }}</div>
+                      </div>
+
+                      <div class="detail-section" *ngIf="log.metadata">
+                        <h4>Metadata</h4>
+                        <pre class="metadata-json">{{ log.metadata | json }}</pre>
+                      </div>
+
+                      <div class="detail-section" *ngIf="log.reviewedBy">
+                        <h4>Review Information</h4>
+                        <div class="detail-grid">
+                          <div class="detail-field">
+                            <span class="field-label">Reviewed By:</span>
+                            <span class="field-value">{{ log.reviewedBy }}</span>
+                          </div>
+                          <div class="detail-field">
+                            <span class="field-label">Reviewed At:</span>
+                            <span class="field-value">{{ formatDateTime(log.reviewedAt) }}</span>
+                          </div>
+                          <div class="detail-field" *ngIf="log.reviewNotes">
+                            <span class="field-label">Notes:</span>
+                            <span class="field-value">{{ log.reviewNotes }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </ng-container>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="logs.length === 0" class="empty-state">
+          <p>No logs found matching the current filters.</p>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" *ngIf="totalPages > 1">
+          <button
+            class="btn-page"
+            [disabled]="currentPage === 1"
+            (click)="changePage(1)">
+            « First
+          </button>
+          <button
+            class="btn-page"
+            [disabled]="currentPage === 1"
+            (click)="changePage(currentPage - 1)">
+            ‹ Prev
+          </button>
+
+          <button
+            *ngFor="let page of pageNumbers"
+            class="btn-page"
+            [class.active]="page === currentPage"
+            (click)="changePage(page)">
+            {{ page }}
+          </button>
+
+          <button
+            class="btn-page"
+            [disabled]="currentPage === totalPages"
+            (click)="changePage(currentPage + 1)">
+            Next ›
+          </button>
+          <button
+            class="btn-page"
+            [disabled]="currentPage === totalPages"
+            (click)="changePage(totalPages)">
+            Last »
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
