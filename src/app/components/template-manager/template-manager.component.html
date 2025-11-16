@@ -1,0 +1,514 @@
+<div class="template-manager">
+  <!-- Header -->
+  <div class="manager-header">
+    <div class="header-content">
+      <button class="btn-back" routerLink="/super-admin/dashboard">
+        ← Back to Dashboard
+      </button>
+      <div class="header-info">
+        <h1>📋 Template Manager</h1>
+        <p class="subtitle">Manage feature templates for quick tenant setup</p>
+      </div>
+    </div>
+    <div class="header-actions" *ngIf="mode === 'list'">
+      <button class="btn btn-outline" (click)="initializeDefaults()">
+        🔄 Initialize Defaults
+      </button>
+      <button class="btn btn-primary" (click)="createNew()">
+        ➕ Create Template
+      </button>
+    </div>
+    <div class="header-actions" *ngIf="mode !== 'list'">
+      <button class="btn btn-outline" (click)="cancelForm()">
+        ✖ Cancel
+      </button>
+      <button
+        *ngIf="mode !== 'preview'"
+        class="btn btn-primary"
+        (click)="saveTemplate()"
+        [disabled]="isSaving">
+        {{ isSaving ? '💾 Saving...' : '💾 Save Template' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading templates...</p>
+  </div>
+
+  <!-- List View -->
+  <div *ngIf="!isLoading && mode === 'list'" class="list-view">
+    <!-- Filters -->
+    <div class="filters-section">
+      <div class="filter-group">
+        <label>Business Type</label>
+        <select [(ngModel)]="filterBusinessType" (ngModelChange)="onFilterChange()" class="filter-select">
+          <option value="all">All Types</option>
+          <option value="jewellery">Jewellery</option>
+          <option value="restaurant">Restaurant</option>
+          <option value="medical">Medical/Pharmacy</option>
+          <option value="retail">Retail/General Store</option>
+          <option value="manufacturing">Manufacturing</option>
+          <option value="services">Services</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Access Level</label>
+        <select [(ngModel)]="filterAccessLevel" (ngModelChange)="onFilterChange()" class="filter-select">
+          <option value="all">All Levels</option>
+          <option value="free">Free</option>
+          <option value="small">Small</option>
+          <option value="advanced">Advanced</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+
+      <div class="filter-group search-group">
+        <label>Search</label>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onFilterChange()"
+          placeholder="Search templates..."
+          class="filter-input">
+      </div>
+    </div>
+
+    <!-- Template Grid -->
+    <div class="template-grid">
+      <div *ngFor="let template of filteredTemplates" class="template-card">
+        <div class="card-header">
+          <div class="card-title">
+            <h3>{{ template.templateName }}</h3>
+            <div class="card-badges">
+              <span class="badge" [ngClass]="getAccessLevelBadgeClass(template.accessLevel)">
+                {{ template.accessLevel }}
+              </span>
+              <span class="badge badge-secondary">{{ template.businessType }}</span>
+              <span *ngIf="template.isDefault" class="badge badge-success">Default</span>
+              <span *ngIf="template.isRecommended" class="badge badge-primary">Recommended</span>
+              <span *ngIf="template.isPopular" class="badge badge-warning">Popular</span>
+            </div>
+          </div>
+          <div class="card-status">
+            <span class="status-dot" [class.active]="template.isActive" [class.inactive]="!template.isActive"></span>
+            <span class="status-text">{{ template.isActive ? 'Active' : 'Inactive' }}</span>
+          </div>
+        </div>
+
+        <p class="card-description">{{ template.description }}</p>
+
+        <div class="card-info">
+          <div class="info-item">
+            <span class="info-label">Pricing:</span>
+            <span class="info-value">{{ formatCurrency(template.pricing.monthlyFee) }}/month</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Support:</span>
+            <span class="info-value">{{ template.supportPlan }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Display Order:</span>
+            <span class="info-value">{{ template.displayOrder }}</span>
+          </div>
+        </div>
+
+        <div class="card-features">
+          <div *ngIf="template.highlights && template.highlights.length > 0" class="features-list">
+            <strong>Highlights:</strong>
+            <ul>
+              <li *ngFor="let highlight of template.highlights.slice(0, 3)">{{ highlight }}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card-actions">
+          <button class="btn-action" title="Preview" (click)="previewTemplate(template)">
+            👁️ Preview
+          </button>
+          <button class="btn-action" title="Edit" (click)="editTemplate(template)">
+            ✏️ Edit
+          </button>
+          <button class="btn-action" title="Clone" (click)="cloneTemplate(template)">
+            📋 Clone
+          </button>
+          <button
+            *ngIf="!template.isDefault"
+            class="btn-action"
+            title="Set as Default"
+            (click)="setAsDefault(template)">
+            ⭐ Set Default
+          </button>
+          <button class="btn-action btn-danger" title="Delete" (click)="deleteTemplate(template)">
+            🗑️ Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="filteredTemplates.length === 0" class="empty-state">
+      <p>No templates found. Create your first template or initialize defaults.</p>
+    </div>
+  </div>
+
+  <!-- Create/Edit Form -->
+  <div *ngIf="mode === 'create' || mode === 'edit'" class="form-view">
+    <div class="form-section">
+      <h2>{{ mode === 'create' ? '➕ Create New Template' : '✏️ Edit Template' }}</h2>
+
+      <!-- Basic Information -->
+      <div class="form-group-section">
+        <h3>Basic Information</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Template Name *</label>
+            <input
+              type="text"
+              [(ngModel)]="templateForm.templateName"
+              class="form-control"
+              placeholder="e.g., Jewellery - Small Shop">
+          </div>
+
+          <div class="form-group">
+            <label>Business Type *</label>
+            <select [(ngModel)]="templateForm.businessType" class="form-control">
+              <option value="jewellery">Jewellery</option>
+              <option value="restaurant">Restaurant</option>
+              <option value="medical">Medical/Pharmacy</option>
+              <option value="retail">Retail/General Store</option>
+              <option value="manufacturing">Manufacturing</option>
+              <option value="services">Services</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Access Level *</label>
+            <select [(ngModel)]="templateForm.accessLevel" class="form-control">
+              <option value="free">Free</option>
+              <option value="small">Small</option>
+              <option value="advanced">Advanced</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group full-width">
+          <label>Description *</label>
+          <textarea
+            [(ngModel)]="templateForm.description"
+            class="form-control"
+            rows="3"
+            placeholder="Describe what this template provides..."></textarea>
+        </div>
+      </div>
+
+      <!-- Display Settings -->
+      <div class="form-group-section">
+        <h3>Display Settings</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Display Order</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.displayOrder"
+              class="form-control"
+              min="0">
+          </div>
+
+          <div class="form-group">
+            <label>Support Plan</label>
+            <select [(ngModel)]="templateForm.supportPlan" class="form-control">
+              <option value="basic">Basic</option>
+              <option value="priority">Priority</option>
+              <option value="24x7">24x7</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row checkbox-row">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="templateForm.isPopular">
+            <span>Mark as Popular</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="templateForm.isRecommended">
+            <span>Mark as Recommended</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="templateForm.isDefault">
+            <span>Set as Default</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="templateForm.isActive">
+            <span>Active</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="templateForm.isVisible">
+            <span>Visible to Users</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Modules Configuration -->
+      <div class="form-group-section">
+        <h3>Modules Configuration</h3>
+        <div *ngFor="let group of featureGroups" class="feature-group">
+          <h4>{{ group.name }}</h4>
+          <div class="feature-checkboxes">
+            <label
+              *ngFor="let feature of group.features"
+              class="checkbox-label feature-checkbox">
+              <input
+                type="checkbox"
+                [checked]="templateForm.modules && templateForm.modules[feature]"
+                (change)="toggleFeature(feature)">
+              <span>{{ getFeatureLabel(feature) }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing Configuration -->
+      <div class="form-group-section">
+        <h3>Pricing Configuration</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Monthly Fee (₹)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.pricing!.monthlyFee"
+              class="form-control"
+              min="0">
+          </div>
+          <div class="form-group">
+            <label>Per User Fee (₹)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.pricing!.perUserFee"
+              class="form-control"
+              min="0">
+          </div>
+          <div class="form-group">
+            <label>Setup Fee (₹)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.pricing!.setupFee"
+              class="form-control"
+              min="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Billing Cycle</label>
+            <select [(ngModel)]="templateForm.pricing!.billingCycle" class="form-control">
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Discount (%)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.pricing!.discountPercent"
+              class="form-control"
+              min="0"
+              max="100">
+          </div>
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="templateForm.pricing!.autoRenewal">
+            <span>Auto Renewal</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Limits Configuration -->
+      <div class="form-group-section">
+        <h3>Limits Configuration</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Max Users (-1 = unlimited)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.limits!.maxUsers"
+              class="form-control"
+              min="-1">
+          </div>
+          <div class="form-group">
+            <label>Max Products (-1 = unlimited)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.limits!.maxProducts"
+              class="form-control"
+              min="-1">
+          </div>
+          <div class="form-group">
+            <label>Max Invoices/Month (-1 = unlimited)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.limits!.maxInvoicesPerMonth"
+              class="form-control"
+              min="-1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Max Branches (-1 = unlimited)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.limits!.maxBranches"
+              class="form-control"
+              min="-1">
+          </div>
+          <div class="form-group">
+            <label>Max Storage (GB)</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.limits!.maxStorageGB"
+              class="form-control"
+              min="0"
+              step="0.1">
+          </div>
+          <div class="form-group">
+            <label>Max API Calls/Day</label>
+            <input
+              type="number"
+              [(ngModel)]="templateForm.limits!.maxAPICallsPerDay"
+              class="form-control"
+              min="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- Highlights & Limitations -->
+      <div class="form-group-section">
+        <h3>Highlights & Limitations</h3>
+
+        <div class="list-manager">
+          <h4>Highlights</h4>
+          <div class="list-items">
+            <div *ngFor="let highlight of templateForm.highlights; let i = index" class="list-item">
+              <span>{{ highlight }}</span>
+              <button class="btn-remove-item" (click)="removeHighlight(i)">✖</button>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-sm" (click)="addHighlight()">
+            ➕ Add Highlight
+          </button>
+        </div>
+
+        <div class="list-manager">
+          <h4>Limitations</h4>
+          <div class="list-items">
+            <div *ngFor="let limitation of templateForm.limitations; let i = index" class="list-item">
+              <span>{{ limitation }}</span>
+              <button class="btn-remove-item" (click)="removeLimitation(i)">✖</button>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-sm" (click)="addLimitation()">
+            ➕ Add Limitation
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div *ngIf="mode === 'preview' && selectedTemplate" class="preview-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📋 Template Preview</h2>
+        <button class="btn-close" (click)="cancelForm()">✖</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="preview-section">
+          <h3>{{ selectedTemplate.templateName }}</h3>
+          <div class="preview-badges">
+            <span class="badge" [ngClass]="getAccessLevelBadgeClass(selectedTemplate.accessLevel)">
+              {{ selectedTemplate.accessLevel }}
+            </span>
+            <span class="badge badge-secondary">{{ selectedTemplate.businessType }}</span>
+            <span *ngIf="selectedTemplate.isDefault" class="badge badge-success">Default</span>
+            <span *ngIf="selectedTemplate.isRecommended" class="badge badge-primary">Recommended</span>
+            <span *ngIf="selectedTemplate.isPopular" class="badge badge-warning">Popular</span>
+          </div>
+          <p>{{ selectedTemplate.description }}</p>
+        </div>
+
+        <div class="preview-section">
+          <h4>Pricing</h4>
+          <div class="preview-grid">
+            <div class="preview-item">
+              <span>Monthly Fee:</span>
+              <strong>{{ formatCurrency(selectedTemplate.pricing.monthlyFee) }}</strong>
+            </div>
+            <div class="preview-item">
+              <span>Per User Fee:</span>
+              <strong>{{ formatCurrency(selectedTemplate.pricing.perUserFee) }}</strong>
+            </div>
+            <div class="preview-item">
+              <span>Billing Cycle:</span>
+              <strong>{{ selectedTemplate.pricing.billingCycle }}</strong>
+            </div>
+            <div class="preview-item">
+              <span>Support Plan:</span>
+              <strong>{{ selectedTemplate.supportPlan }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-section">
+          <h4>Limits</h4>
+          <div class="preview-grid">
+            <div class="preview-item">
+              <span>Max Users:</span>
+              <strong>{{ selectedTemplate.limits.maxUsers === -1 ? 'Unlimited' : selectedTemplate.limits.maxUsers }}</strong>
+            </div>
+            <div class="preview-item">
+              <span>Max Products:</span>
+              <strong>{{ selectedTemplate.limits.maxProducts === -1 ? 'Unlimited' : selectedTemplate.limits.maxProducts }}</strong>
+            </div>
+            <div class="preview-item">
+              <span>Max Invoices/Month:</span>
+              <strong>{{ selectedTemplate.limits.maxInvoicesPerMonth === -1 ? 'Unlimited' : selectedTemplate.limits.maxInvoicesPerMonth }}</strong>
+            </div>
+            <div class="preview-item">
+              <span>Max Branches:</span>
+              <strong>{{ selectedTemplate.limits.maxBranches === -1 ? 'Unlimited' : selectedTemplate.limits.maxBranches }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-section" *ngIf="selectedTemplate.highlights && selectedTemplate.highlights.length > 0">
+          <h4>Highlights</h4>
+          <ul class="preview-list">
+            <li *ngFor="let highlight of selectedTemplate.highlights">{{ highlight }}</li>
+          </ul>
+        </div>
+
+        <div class="preview-section" *ngIf="selectedTemplate.limitations && selectedTemplate.limitations.length > 0">
+          <h4>Limitations</h4>
+          <ul class="preview-list">
+            <li *ngFor="let limitation of selectedTemplate.limitations">{{ limitation }}</li>
+          </ul>
+        </div>
+
+        <div class="preview-section">
+          <h4>Enabled Modules</h4>
+          <div class="preview-modules">
+            <span
+              *ngFor="let module of selectedTemplate.modules | keyvalue"
+              [class.enabled]="module.value"
+              class="module-badge">
+              {{ getFeatureLabel(module.key) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
