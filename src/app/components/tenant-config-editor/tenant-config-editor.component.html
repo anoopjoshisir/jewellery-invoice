@@ -1,0 +1,572 @@
+<div class="tenant-config-editor">
+  <!-- Header -->
+  <div class="editor-header">
+    <div class="header-content">
+      <button class="btn-back" routerLink="/super-admin/dashboard">
+        ← Back to Dashboard
+      </button>
+      <div class="tenant-info" *ngIf="config">
+        <h1>Configure: {{ config.tenantId }}</h1>
+        <div class="tenant-meta">
+          <span class="badge" [ngClass]="getStatusBadgeClass(config.status)">
+            {{ config.status }}
+          </span>
+          <span class="badge" [ngClass]="getAccessLevelBadgeClass(config.accessLevel)">
+            {{ config.accessLevel }}
+          </span>
+          <span class="business-type">{{ config.businessType }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions" *ngIf="config">
+      <button
+        *ngIf="config.status === 'suspended'"
+        class="btn btn-success"
+        (click)="resumeTenant()">
+        ▶️ Resume
+      </button>
+      <button
+        *ngIf="config.status === 'active'"
+        class="btn btn-warning"
+        (click)="suspendTenant()">
+        ⏸️ Suspend
+      </button>
+      <button class="btn btn-primary" (click)="upgradePlan()">
+        ⬆️ Upgrade Plan
+      </button>
+      <button class="btn btn-primary" (click)="saveConfig()" [disabled]="isSaving">
+        {{ isSaving ? '💾 Saving...' : '💾 Save Changes' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading configuration...</p>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!isLoading && config" class="editor-content">
+    <!-- Navigation Tabs -->
+    <div class="editor-tabs">
+      <button
+        [class.active]="selectedTab === 'modules'"
+        (click)="changeTab('modules')">
+        🎛️ Modules
+      </button>
+      <button
+        [class.active]="selectedTab === 'limits'"
+        (click)="changeTab('limits')">
+        📊 Limits & Usage
+      </button>
+      <button
+        [class.active]="selectedTab === 'pricing'"
+        (click)="changeTab('pricing')">
+        💰 Pricing
+      </button>
+      <button
+        [class.active]="selectedTab === 'settings'"
+        (click)="changeTab('settings')">
+        ⚙️ Settings
+      </button>
+      <button
+        [class.active]="selectedTab === 'custom'"
+        (click)="changeTab('custom')">
+        ✨ Custom Features
+      </button>
+    </div>
+
+    <!-- Modules Tab -->
+    <div *ngIf="selectedTab === 'modules'" class="tab-content">
+      <!-- Template Selector -->
+      <div class="section template-selector">
+        <h2>📋 Quick Apply Template</h2>
+        <p class="help-text">Apply a pre-configured template to set modules, limits, and pricing</p>
+        <div class="template-grid">
+          <div
+            *ngFor="let template of templates"
+            class="template-card"
+            [class.current]="template.accessLevel === config.accessLevel && template.businessType === config.businessType">
+            <div class="template-header">
+              <h3>{{ template.templateName }}</h3>
+              <span class="badge" [ngClass]="getAccessLevelBadgeClass(template.accessLevel)">
+                {{ template.accessLevel }}
+              </span>
+            </div>
+            <p class="template-description">{{ template.description }}</p>
+            <div class="template-pricing">
+              {{ formatCurrency(template.pricing.monthlyFee) }}/month
+            </div>
+            <button
+              class="btn btn-outline btn-sm"
+              (click)="applyTemplate(template.id!)">
+              Apply Template
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Matrix -->
+      <div class="section">
+        <h2>🎛️ Feature Matrix</h2>
+        <p class="help-text">Toggle features on/off for this tenant</p>
+
+        <div *ngFor="let group of featureGroups" class="feature-group">
+          <h3>{{ group.name }}</h3>
+          <div class="feature-grid">
+            <div *ngFor="let feature of group.features" class="feature-item">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  [checked]="config.modules[feature]"
+                  (change)="toggleFeature(feature)">
+                <span class="slider"></span>
+              </label>
+              <div class="feature-info">
+                <strong>{{ getFeatureLabel(feature) }}</strong>
+                <span class="feature-status" [class.enabled]="config.modules[feature]">
+                  {{ config.modules[feature] ? '✓ Enabled' : '✗ Disabled' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Limits & Usage Tab -->
+    <div *ngIf="selectedTab === 'limits'" class="tab-content">
+      <div class="section">
+        <h2>📊 Limits & Current Usage</h2>
+        <p class="help-text">Monitor and adjust tenant limits</p>
+
+        <div class="limits-grid">
+          <!-- Users -->
+          <div class="limit-card">
+            <h3>👥 Users</h3>
+            <div class="limit-info">
+              <div class="limit-values">
+                <span class="current">{{ config.usage?.currentUsers || 0 }}</span>
+                <span class="separator">/</span>
+                <input
+                  type="number"
+                  [(ngModel)]="config.limits.maxUsers"
+                  class="limit-input"
+                  min="-1">
+              </div>
+              <div class="limit-bar">
+                <div
+                  class="limit-progress"
+                  [ngClass]="getUsageClass(getUsagePercentage(config.usage?.currentUsers || 0, config.limits.maxUsers))"
+                  [style.width.%]="getUsagePercentage(config.usage?.currentUsers || 0, config.limits.maxUsers)">
+                </div>
+              </div>
+              <p class="limit-note">-1 = Unlimited</p>
+            </div>
+          </div>
+
+          <!-- Products -->
+          <div class="limit-card">
+            <h3>📦 Products</h3>
+            <div class="limit-info">
+              <div class="limit-values">
+                <span class="current">{{ config.usage?.currentProducts || 0 }}</span>
+                <span class="separator">/</span>
+                <input
+                  type="number"
+                  [(ngModel)]="config.limits.maxProducts"
+                  class="limit-input"
+                  min="-1">
+              </div>
+              <div class="limit-bar">
+                <div
+                  class="limit-progress"
+                  [ngClass]="getUsageClass(getUsagePercentage(config.usage?.currentProducts || 0, config.limits.maxProducts))"
+                  [style.width.%]="getUsagePercentage(config.usage?.currentProducts || 0, config.limits.maxProducts)">
+                </div>
+              </div>
+              <p class="limit-note">-1 = Unlimited</p>
+            </div>
+          </div>
+
+          <!-- Invoices -->
+          <div class="limit-card">
+            <h3>📄 Invoices/Month</h3>
+            <div class="limit-info">
+              <div class="limit-values">
+                <span class="current">{{ config.usage?.currentInvoicesThisMonth || 0 }}</span>
+                <span class="separator">/</span>
+                <input
+                  type="number"
+                  [(ngModel)]="config.limits.maxInvoicesPerMonth"
+                  class="limit-input"
+                  min="-1">
+              </div>
+              <div class="limit-bar">
+                <div
+                  class="limit-progress"
+                  [ngClass]="getUsageClass(getUsagePercentage(config.usage?.currentInvoicesThisMonth || 0, config.limits.maxInvoicesPerMonth))"
+                  [style.width.%]="getUsagePercentage(config.usage?.currentInvoicesThisMonth || 0, config.limits.maxInvoicesPerMonth)">
+                </div>
+              </div>
+              <p class="limit-note">Resets monthly</p>
+            </div>
+          </div>
+
+          <!-- Branches -->
+          <div class="limit-card">
+            <h3>🏢 Branches</h3>
+            <div class="limit-info">
+              <div class="limit-values">
+                <span class="current">{{ config.usage?.currentBranches || 0 }}</span>
+                <span class="separator">/</span>
+                <input
+                  type="number"
+                  [(ngModel)]="config.limits.maxBranches"
+                  class="limit-input"
+                  min="-1">
+              </div>
+              <div class="limit-bar">
+                <div
+                  class="limit-progress"
+                  [ngClass]="getUsageClass(getUsagePercentage(config.usage?.currentBranches || 0, config.limits.maxBranches))"
+                  [style.width.%]="getUsagePercentage(config.usage?.currentBranches || 0, config.limits.maxBranches)">
+                </div>
+              </div>
+              <p class="limit-note">-1 = Unlimited</p>
+            </div>
+          </div>
+
+          <!-- Storage -->
+          <div class="limit-card">
+            <h3>💾 Storage (GB)</h3>
+            <div class="limit-info">
+              <div class="limit-values">
+                <span class="current">{{ (config.usage?.currentStorageGB || 0).toFixed(2) }}</span>
+                <span class="separator">/</span>
+                <input
+                  type="number"
+                  [(ngModel)]="config.limits.maxStorageGB"
+                  class="limit-input"
+                  min="0"
+                  step="0.1">
+              </div>
+              <div class="limit-bar">
+                <div
+                  class="limit-progress"
+                  [ngClass]="getUsageClass(getUsagePercentage(config.usage?.currentStorageGB || 0, config.limits.maxStorageGB))"
+                  [style.width.%]="getUsagePercentage(config.usage?.currentStorageGB || 0, config.limits.maxStorageGB)">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- API Calls -->
+          <div class="limit-card">
+            <h3>🔌 API Calls/Day</h3>
+            <div class="limit-info">
+              <div class="limit-values">
+                <span class="current">{{ config.usage?.currentAPICallsToday || 0 }}</span>
+                <span class="separator">/</span>
+                <input
+                  type="number"
+                  [(ngModel)]="config.limits.maxAPICallsPerDay"
+                  class="limit-input"
+                  min="0">
+              </div>
+              <div class="limit-bar">
+                <div
+                  class="limit-progress"
+                  [ngClass]="getUsageClass(getUsagePercentage(config.usage?.currentAPICallsToday || 0, config.limits.maxAPICallsPerDay))"
+                  [style.width.%]="getUsagePercentage(config.usage?.currentAPICallsToday || 0, config.limits.maxAPICallsPerDay)">
+                </div>
+              </div>
+              <p class="limit-note">Resets daily</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pricing Tab -->
+    <div *ngIf="selectedTab === 'pricing'" class="tab-content">
+      <div class="section">
+        <h2>💰 Pricing Configuration</h2>
+
+        <div class="pricing-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Access Level</label>
+              <select [(ngModel)]="config.accessLevel" class="form-control">
+                <option value="free">Free</option>
+                <option value="small">Small</option>
+                <option value="advanced">Advanced</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Monthly Fee (₹)</label>
+              <input
+                type="number"
+                [(ngModel)]="config.pricing.monthlyFee"
+                class="form-control"
+                min="0">
+            </div>
+
+            <div class="form-group">
+              <label>Per User Fee (₹)</label>
+              <input
+                type="number"
+                [(ngModel)]="config.pricing.perUserFee"
+                class="form-control"
+                min="0">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Billing Cycle</label>
+              <select [(ngModel)]="config.pricing.billingCycle" class="form-control">
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Discount (%)</label>
+              <input
+                type="number"
+                [(ngModel)]="config.pricing.discountPercent"
+                class="form-control"
+                min="0"
+                max="100">
+            </div>
+
+            <div class="form-group">
+              <label>Auto Renewal</label>
+              <label class="toggle-switch-label">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="config.pricing.autoRenewal"
+                  class="toggle-checkbox">
+                <span class="toggle-text">{{ config.pricing.autoRenewal ? 'Yes' : 'No' }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="pricing-summary">
+            <h3>Pricing Summary</h3>
+            <div class="summary-item">
+              <span>Base Monthly Fee:</span>
+              <strong>{{ formatCurrency(config.pricing.monthlyFee) }}</strong>
+            </div>
+            <div class="summary-item" *ngIf="config.pricing.discountPercent > 0">
+              <span>Discount ({{ config.pricing.discountPercent }}%):</span>
+              <strong class="discount">
+                -{{ formatCurrency(config.pricing.monthlyFee * config.pricing.discountPercent / 100) }}
+              </strong>
+            </div>
+            <div class="summary-item total">
+              <span>Total Monthly:</span>
+              <strong>
+                {{ formatCurrency(config.pricing.monthlyFee * (1 - config.pricing.discountPercent / 100)) }}
+              </strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div *ngIf="selectedTab === 'settings'" class="tab-content">
+      <div class="section">
+        <h2>⚙️ Tenant Settings</h2>
+
+        <div class="settings-form">
+          <h3>General Information</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tenant ID</label>
+              <input
+                type="text"
+                [value]="config.tenantId"
+                class="form-control"
+                disabled>
+            </div>
+
+            <div class="form-group">
+              <label>Business Type</label>
+              <select [(ngModel)]="config.businessType" class="form-control">
+                <option value="jewellery">Jewellery</option>
+                <option value="restaurant">Restaurant</option>
+                <option value="medical">Medical/Pharmacy</option>
+                <option value="retail">Retail/General Store</option>
+                <option value="manufacturing">Manufacturing</option>
+                <option value="services">Services</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Support Plan</label>
+              <select [(ngModel)]="config.supportPlan" class="form-control">
+                <option value="basic">Basic (Email)</option>
+                <option value="priority">Priority (Phone + Email)</option>
+                <option value="24x7">24x7 (Dedicated Support)</option>
+              </select>
+            </div>
+          </div>
+
+          <h3>Contacts</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Support Contact</label>
+              <input
+                type="email"
+                [(ngModel)]="config.supportContact"
+                class="form-control"
+                placeholder="support@example.com">
+            </div>
+
+            <div class="form-group">
+              <label>Billing Email</label>
+              <input
+                type="email"
+                [(ngModel)]="config.billingEmail"
+                class="form-control"
+                placeholder="billing@example.com">
+            </div>
+
+            <div class="form-group">
+              <label>Technical Email</label>
+              <input
+                type="email"
+                [(ngModel)]="config.technicalEmail"
+                class="form-control"
+                placeholder="tech@example.com">
+            </div>
+          </div>
+
+          <h3>Compliance</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Data Retention (days)</label>
+              <input
+                type="number"
+                [(ngModel)]="config.dataRetentionDays"
+                class="form-control"
+                min="30"
+                placeholder="365">
+            </div>
+
+            <div class="form-group">
+              <label>Enable Audit Log</label>
+              <label class="toggle-switch-label">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="config.enableAuditLog"
+                  class="toggle-checkbox">
+                <span class="toggle-text">{{ config.enableAuditLog ? 'Yes' : 'No' }}</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label>Enable Data Backup</label>
+              <label class="toggle-switch-label">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="config.enableDataBackup"
+                  class="toggle-checkbox">
+                <span class="toggle-text">{{ config.enableDataBackup ? 'Yes' : 'No' }}</span>
+              </label>
+            </div>
+          </div>
+
+          <h3>Internal Notes</h3>
+          <div class="form-group full-width">
+            <textarea
+              [(ngModel)]="config.internalNotes"
+              class="form-control"
+              rows="4"
+              placeholder="Internal notes for super admin use only..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Features Tab -->
+    <div *ngIf="selectedTab === 'custom'" class="tab-content">
+      <div class="section">
+        <h2>✨ Custom Features</h2>
+        <p class="help-text">Add custom features with specific configurations for this tenant</p>
+
+        <!-- Add Custom Feature Form -->
+        <div class="custom-feature-form">
+          <h3>Add New Custom Feature</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Feature Name</label>
+              <input
+                type="text"
+                [(ngModel)]="newCustomFeature.featureName"
+                class="form-control"
+                placeholder="e.g., customIntegration">
+            </div>
+
+            <div class="form-group">
+              <label>Enabled</label>
+              <label class="toggle-switch-label">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="newCustomFeature.enabled"
+                  class="toggle-checkbox">
+                <span class="toggle-text">{{ newCustomFeature.enabled ? 'Yes' : 'No' }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group full-width">
+            <label>Notes</label>
+            <textarea
+              [(ngModel)]="newCustomFeature.notes"
+              class="form-control"
+              rows="2"
+              placeholder="Description or configuration notes..."></textarea>
+          </div>
+
+          <button class="btn btn-primary" (click)="addCustomFeature()">
+            ➕ Add Custom Feature
+          </button>
+        </div>
+
+        <!-- Existing Custom Features -->
+        <div class="custom-features-list" *ngIf="config.customFeatures && config.customFeatures.length > 0">
+          <h3>Existing Custom Features</h3>
+          <div class="custom-feature-item" *ngFor="let feature of config.customFeatures">
+            <div class="feature-header">
+              <div class="feature-name">
+                <strong>{{ feature.featureName }}</strong>
+                <span class="badge" [class.badge-success]="feature.enabled" [class.badge-secondary]="!feature.enabled">
+                  {{ feature.enabled ? 'Enabled' : 'Disabled' }}
+                </span>
+              </div>
+              <button class="btn-remove" (click)="removeCustomFeature(feature.featureName)">
+                🗑️ Remove
+              </button>
+            </div>
+            <p *ngIf="feature.notes" class="feature-notes">{{ feature.notes }}</p>
+            <div class="feature-meta" *ngIf="feature.enabledAt">
+              <small>Added: {{ formatDate(feature.enabledAt) }}</small>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="!config.customFeatures || config.customFeatures.length === 0" class="empty-state">
+          <p>No custom features configured yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
