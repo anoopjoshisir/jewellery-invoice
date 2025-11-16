@@ -1,0 +1,72 @@
+<div class="tenant-switcher" *ngIf="currentTenant">
+  <div class="current-tenant" (click)="toggleDropdown()" tabindex="0">
+    <div class="tenant-info">
+      <div class="tenant-name">
+        {{ currentTenant.name }}
+        <span class="plan-badge" [title]="currentTenant.plan">
+          {{ getPlanBadge(currentTenant.plan) }}
+        </span>
+      </div>
+      <div class="tenant-status">
+        {{ getTenantStatusBadge(currentTenant.status) }}
+        {{ getTenantStatusText(currentTenant.status) }}
+      </div>
+    </div>
+    <div class="dropdown-arrow" [class.open]="showDropdown">
+      ▼
+    </div>
+  </div>
+
+  <div class="tenant-dropdown" *ngIf="showDropdown" (blur)="closeDropdown()">
+    <div class="dropdown-header">
+      <h3>Switch Business</h3>
+      <p>You have access to {{ userTenants.length }} business{{ userTenants.length !== 1 ? 'es' : '' }}</p>
+    </div>
+
+    <div class="tenants-list">
+      <div
+        *ngFor="let tenant of userTenants"
+        class="tenant-item"
+        [class.active]="tenant.id === currentTenant?.id"
+        [class.disabled]="tenant.status === 'suspended' || tenant.status === 'expired'"
+        (click)="switchTenant(tenant)"
+      >
+        <div class="tenant-item-content">
+          <div class="tenant-item-header">
+            <strong>{{ tenant.name }}</strong>
+            <span class="plan-badge-sm">
+              {{ getPlanBadge(tenant.plan) }} {{ tenant.plan }}
+            </span>
+          </div>
+          <div class="tenant-item-details">
+            <span class="tenant-code">{{ tenant.tenantCode }}</span>
+            <span class="tenant-status-badge" [class]="'status-' + tenant.status">
+              {{ getTenantStatusBadge(tenant.status) }}
+              {{ getTenantStatusText(tenant.status) }}
+            </span>
+          </div>
+        </div>
+        <div class="active-indicator" *ngIf="tenant.id === currentTenant?.id">
+          ✓
+        </div>
+      </div>
+
+      <div class="tenant-item no-tenants" *ngIf="userTenants.length === 0 && !isLoading">
+        <p>No businesses found</p>
+      </div>
+
+      <div class="tenant-item loading" *ngIf="isLoading">
+        <p>Loading businesses...</p>
+      </div>
+    </div>
+
+    <div class="dropdown-footer">
+      <button class="btn-create-tenant" (click)="createNewTenant()">
+        <span class="icon">+</span>
+        Create New Business
+      </button>
+    </div>
+  </div>
+
+  <div class="dropdown-overlay" *ngIf="showDropdown" (click)="closeDropdown()"></div>
+</div>

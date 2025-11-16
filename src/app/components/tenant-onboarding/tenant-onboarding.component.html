@@ -1,0 +1,220 @@
+<div class="onboarding-container">
+  <div class="onboarding-card">
+    <div class="onboarding-header">
+      <h1>Create Your Business Account</h1>
+      <p>Set up your jewellery business in just a few steps</p>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-steps">
+      <div class="step" [class.active]="currentStep >= 1" [class.completed]="currentStep > 1">
+        <div class="step-number">1</div>
+        <div class="step-label">Business Info</div>
+      </div>
+      <div class="step-line" [class.completed]="currentStep > 1"></div>
+      <div class="step" [class.active]="currentStep >= 2" [class.completed]="currentStep > 2">
+        <div class="step-number">2</div>
+        <div class="step-label">Details</div>
+      </div>
+      <div class="step-line" [class.completed]="currentStep > 2"></div>
+      <div class="step" [class.active]="currentStep >= 3">
+        <div class="step-number">3</div>
+        <div class="step-label">Choose Plan</div>
+      </div>
+    </div>
+
+    <form [formGroup]="onboardingForm" (ngSubmit)="submitOnboarding()">
+      <!-- Step 1: Business Information -->
+      <div class="step-content" *ngIf="currentStep === 1">
+        <h2>Business Information</h2>
+        <p class="step-description">Tell us about your jewellery business</p>
+
+        <div class="form-group">
+          <label for="name">Business Name *</label>
+          <input
+            type="text"
+            id="name"
+            formControlName="name"
+            placeholder="e.g., ABC Jewellers"
+            [class.error]="onboardingForm.get('name')?.touched && onboardingForm.get('name')?.invalid"
+          />
+          <span class="error-message" *ngIf="getFieldError('name')">
+            {{ getFieldError('name') }}
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="slogan">Slogan / Tagline</label>
+          <input
+            type="text"
+            id="slogan"
+            formControlName="slogan"
+            placeholder="e.g., Your Trusted Jeweller Since 1990"
+          />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Business Email *</label>
+            <input
+              type="email"
+              id="email"
+              formControlName="email"
+              placeholder="contact@yourbusiness.com"
+              [class.error]="onboardingForm.get('email')?.touched && onboardingForm.get('email')?.invalid"
+            />
+            <span class="error-message" *ngIf="getFieldError('email')">
+              {{ getFieldError('email') }}
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label for="mobile">Business Mobile *</label>
+            <input
+              type="tel"
+              id="mobile"
+              formControlName="mobile"
+              placeholder="9876543210"
+              maxlength="10"
+              [class.error]="onboardingForm.get('mobile')?.touched && onboardingForm.get('mobile')?.invalid"
+            />
+            <span class="error-message" *ngIf="getFieldError('mobile')">
+              {{ getFieldError('mobile') }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Business Details -->
+      <div class="step-content" *ngIf="currentStep === 2">
+        <h2>Business Details</h2>
+        <p class="step-description">Complete your business profile</p>
+
+        <div class="form-group">
+          <label for="address">Business Address *</label>
+          <textarea
+            id="address"
+            formControlName="address"
+            rows="3"
+            placeholder="Shop No, Street, Area, City, State, PIN"
+            [class.error]="onboardingForm.get('address')?.touched && onboardingForm.get('address')?.invalid"
+          ></textarea>
+          <span class="error-message" *ngIf="getFieldError('address')">
+            {{ getFieldError('address') }}
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="gstin">GSTIN (Optional)</label>
+          <input
+            type="text"
+            id="gstin"
+            formControlName="gstin"
+            placeholder="22AAAAA0000A1Z5"
+            maxlength="15"
+            [class.error]="onboardingForm.get('gstin')?.touched && onboardingForm.get('gstin')?.invalid"
+          />
+          <span class="error-message" *ngIf="getFieldError('gstin')">
+            {{ getFieldError('gstin') }}
+          </span>
+          <small>15-digit GST Identification Number</small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ownerName">Owner Name *</label>
+            <input
+              type="text"
+              id="ownerName"
+              formControlName="ownerName"
+              placeholder="John Doe"
+              [class.error]="onboardingForm.get('ownerName')?.touched && onboardingForm.get('ownerName')?.invalid"
+            />
+            <span class="error-message" *ngIf="getFieldError('ownerName')">
+              {{ getFieldError('ownerName') }}
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label for="ownerPhone">Owner Phone</label>
+            <input
+              type="tel"
+              id="ownerPhone"
+              formControlName="ownerPhone"
+              placeholder="9876543210"
+              maxlength="10"
+              [class.error]="onboardingForm.get('ownerPhone')?.touched && onboardingForm.get('ownerPhone')?.invalid"
+            />
+            <span class="error-message" *ngIf="getFieldError('ownerPhone')">
+              {{ getFieldError('ownerPhone') }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Plan Selection -->
+      <div class="step-content" *ngIf="currentStep === 3">
+        <h2>Choose Your Plan</h2>
+        <p class="step-description">Select the plan that fits your business needs</p>
+
+        <div class="plans-grid">
+          <div
+            *ngFor="let plan of plans"
+            class="plan-card"
+            [class.selected]="selectedPlan === plan.id"
+            [class.popular]="plan.popular"
+            (click)="selectPlan(plan.id)"
+          >
+            <div class="popular-badge" *ngIf="plan.popular">Most Popular</div>
+            <h3>{{ plan.name }}</h3>
+            <div class="plan-price">{{ getPlanPrice(plan) }}</div>
+            <ul class="plan-features">
+              <li *ngFor="let feature of plan.features">
+                <span class="checkmark">✓</span> {{ feature }}
+              </li>
+            </ul>
+            <div class="plan-select-indicator" *ngIf="selectedPlan === plan.id">
+              Selected ✓
+            </div>
+          </div>
+        </div>
+
+        <div class="plan-note">
+          <p><strong>Note:</strong> You can upgrade or downgrade your plan anytime from settings.</p>
+          <p *ngIf="selectedPlan === 'free'">Start with a 30-day free trial on all plans!</p>
+        </div>
+      </div>
+
+      <!-- Navigation Buttons -->
+      <div class="onboarding-actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="previousStep()"
+          *ngIf="currentStep > 1"
+          [disabled]="isSubmitting"
+        >
+          Previous
+        </button>
+
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="nextStep()"
+          *ngIf="currentStep < totalSteps"
+        >
+          Next
+        </button>
+
+        <button
+          type="submit"
+          class="btn-success"
+          *ngIf="currentStep === totalSteps"
+          [disabled]="isSubmitting || !selectedPlan"
+        >
+          {{ isSubmitting ? 'Creating...' : 'Create Business' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
