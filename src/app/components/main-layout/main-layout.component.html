@@ -1,22 +1,48 @@
 <div class="main-layout-navbar">
-  <div class="company-select">
-    <label>Select Company:</label>
-    <select [value]="selectedCompanyId" (change)="onCompanyChange($event.target)">
-      <option *ngFor="let c of companies" [value]="c.id">{{c.name}}</option>
-    </select>
-  </div>
-  <nav>
+  <!-- Tenant Switcher Widget -->
+  <app-tenant-switcher></app-tenant-switcher>
+
+  <!-- User Info -->
+  <nav class="user-info">
     <span *ngIf="auth.user$ | async as user">
-      Welcome, {{ user.displayName || user.email }} <span *ngIf="user.isAdmin">(Admin)</span>
-      <!-- company selector can use user.companies -->
+      👤 {{ user.displayName || user.email }}
+      <span *ngIf="user.isSuperAdmin" class="super-admin-badge">🛡️ Super Admin</span>
+      <span *ngIf="user.isAdmin && !user.isSuperAdmin" class="admin-badge">Admin</span>
     </span>
   </nav>
-  <a routerLink="/dashboard">Dashboard</a>
-  <a routerLink="/customers">Customers</a>
-  <a routerLink="/invoices">Invoices</a>
-  <a routerLink="/ledger">Ledger</a>
-  <a routerLink="/payment">Payment</a>
-  <button (click)="logout()">Logout</button>
+
+  <!-- Navigation Links -->
+  <div class="nav-links">
+    <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+    <a routerLink="/customers" routerLinkActive="active">Customers</a>
+
+    <div class="nav-group">
+      <span class="nav-label">Estimates</span>
+      <a routerLink="/estimates" routerLinkActive="active">Create</a>
+      <a routerLink="/estimatelist" routerLinkActive="active">View All</a>
+    </div>
+
+    <div class="nav-group">
+      <span class="nav-label">Invoices</span>
+      <a routerLink="/invoices" routerLinkActive="active">Create</a>
+      <a routerLink="/invoicelist" routerLinkActive="active">View All</a>
+    </div>
+
+    <a routerLink="/ledger" routerLinkActive="active">Ledger</a>
+    <a routerLink="/payment" routerLinkActive="active">Payment</a>
+  </div>
+
+  <!-- Super Admin Link -->
+  <a
+    *ngIf="(auth.user$ | async)?.isSuperAdmin"
+    routerLink="/super-admin"
+    routerLinkActive="active"
+    class="super-admin-link">
+    🛡️ Super Admin
+  </a>
+
+  <!-- Logout Button -->
+  <button class="logout-btn" (click)="logout()">Logout</button>
 </div>
 <div class="main-layout-content">
   <ng-content></ng-content>

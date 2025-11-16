@@ -5,13 +5,17 @@ import { LoginComponent } from './components/login/login.component';
 import { NoteListComponent } from './components/note/note-list.component';
 import { InvoiceComponent } from './components/invoice/invoice.component';
 import { LedgerComponent } from './components/ledger/ledger.component';
-import { AuthGuard } from './core/gaurds/auth.gaurd';
+import { AuthGuard } from './core/guards/auth.guard';
 import { CompanyComponent } from './components/company/company.component';
 import { InvoicePrintComponent } from './components/print/invoice-print.component';
 import { UserComponent } from './components/user/user.component';
 import { PaymentComponent } from './components/payment/payment.component';
 import { NotFoundComponent } from './components/not-found/not-found.component';
 import { InvoiceListComponent } from './components/invoice-list/invoice-list.component';
+import { EstimateComponent } from './components/estimate/estimate.component';
+import { EstimateListComponent } from './components/estimate-list/estimate-list.component';
+import { TenantOnboardingComponent } from './components/tenant-onboarding/tenant-onboarding.component';
+import { SuperAdminComponent } from './components/super-admin/super-admin.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -44,6 +48,16 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'estimates',
+    component: EstimateComponent,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'estimatelist',
+    component: EstimateListComponent,
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'payment',
     component: PaymentComponent,
     canActivate: [AuthGuard]
@@ -56,9 +70,19 @@ export const routes: Routes = [
     path: 'user', 
     component: UserComponent 
   },
-  { 
-    path: 'print/:invoiceId', 
-    component: InvoicePrintComponent 
+  {
+    path: 'print/:invoiceId',
+    component: InvoicePrintComponent
+  },
+  {
+    path: 'tenant-onboarding',
+    component: TenantOnboardingComponent,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'super-admin',
+    component: SuperAdminComponent,
+    canActivate: [AuthGuard]
   },
   // Add more feature routes here as needed, using lazy loading for large modules:
   // {

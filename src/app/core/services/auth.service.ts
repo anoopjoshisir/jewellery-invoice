@@ -4,9 +4,10 @@ import { UserService } from './user.service';
 import { User } from '../models/user.model';
 import { BehaviorSubject } from 'rxjs';
 import * as CryptoJS from 'crypto-js';
+import { environment } from '../../../environments/environment';
 
 const STORAGE_KEY = 'jewelry_user_data';
-const SECRET = 'JewelleryInvoiceSuperSecret';
+const SECRET = environment.encryptionKey;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {

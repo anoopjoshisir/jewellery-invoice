@@ -1,0 +1,227 @@
+<app-main-layout>
+<div class="super-admin-container">
+  <div class="admin-header">
+    <h1>🛡️ Super Admin Dashboard</h1>
+    <p>Manage all tenants and monitor system-wide statistics</p>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">🏢</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ totalTenants }}</div>
+        <div class="stat-label">Total Businesses</div>
+      </div>
+    </div>
+
+    <div class="stat-card active">
+      <div class="stat-icon">✅</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ activeTenants }}</div>
+        <div class="stat-label">Active</div>
+      </div>
+    </div>
+
+    <div class="stat-card trial">
+      <div class="stat-icon">🔵</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ trialTenants }}</div>
+        <div class="stat-label">Trial</div>
+      </div>
+    </div>
+
+    <div class="stat-card suspended">
+      <div class="stat-icon">🔴</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ suspendedTenants }}</div>
+        <div class="stat-label">Suspended</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ totalUsers }}</div>
+        <div class="stat-label">Total Users</div>
+      </div>
+    </div>
+
+    <div class="stat-card revenue">
+      <div class="stat-icon">💰</div>
+      <div class="stat-content">
+        <div class="stat-value">₹{{ totalRevenue | number }}</div>
+        <div class="stat-label">Monthly Revenue</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plan Distribution -->
+  <div class="plan-distribution">
+    <h3>Plan Distribution</h3>
+    <div class="plan-bars">
+      <div class="plan-bar">
+        <span class="plan-name">Free</span>
+        <div class="bar-container">
+          <div class="bar free" [style.width.%]="(planStats.free / totalTenants) * 100"></div>
+        </div>
+        <span class="plan-count">{{ planStats.free }}</span>
+      </div>
+      <div class="plan-bar">
+        <span class="plan-name">Basic</span>
+        <div class="bar-container">
+          <div class="bar basic" [style.width.%]="(planStats.basic / totalTenants) * 100"></div>
+        </div>
+        <span class="plan-count">{{ planStats.basic }}</span>
+      </div>
+      <div class="plan-bar">
+        <span class="plan-name">Premium</span>
+        <div class="bar-container">
+          <div class="bar premium" [style.width.%]="(planStats.premium / totalTenants) * 100"></div>
+        </div>
+        <span class="plan-count">{{ planStats.premium }}</span>
+      </div>
+      <div class="plan-bar">
+        <span class="plan-name">Enterprise</span>
+        <div class="bar-container">
+          <div class="bar enterprise" [style.width.%]="(planStats.enterprise / totalTenants) * 100"></div>
+        </div>
+        <span class="plan-count">{{ planStats.enterprise }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-section">
+    <div class="tabs">
+      <button
+        class="tab"
+        [class.active]="selectedTab === 'all'"
+        (click)="onTabChange('all')"
+      >
+        All ({{ tenants.length }})
+      </button>
+      <button
+        class="tab"
+        [class.active]="selectedTab === 'active'"
+        (click)="onTabChange('active')"
+      >
+        Active ({{ activeTenants }})
+      </button>
+      <button
+        class="tab"
+        [class.active]="selectedTab === 'trial'"
+        (click)="onTabChange('trial')"
+      >
+        Trial ({{ trialTenants }})
+      </button>
+      <button
+        class="tab"
+        [class.active]="selectedTab === 'suspended'"
+        (click)="onTabChange('suspended')"
+      >
+        Suspended ({{ suspendedTenants }})
+      </button>
+    </div>
+
+    <div class="search-box">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (input)="onSearchChange()"
+        placeholder="Search by name, code, or email..."
+      />
+    </div>
+  </div>
+
+  <!-- Tenants Table -->
+  <div class="tenants-table-container">
+    <div *ngIf="isLoading" class="loading">
+      <p>Loading tenants...</p>
+    </div>
+
+    <table *ngIf="!isLoading && filteredTenants.length > 0">
+      <thead>
+        <tr>
+          <th>Business Name</th>
+          <th>Code</th>
+          <th>Plan</th>
+          <th>Status</th>
+          <th>Users</th>
+          <th>Created</th>
+          <th>Expires</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let tenant of filteredTenants">
+          <td>
+            <div class="tenant-name">
+              <strong>{{ tenant.name }}</strong>
+              <small *ngIf="tenant.email">{{ tenant.email }}</small>
+            </div>
+          </td>
+          <td>
+            <span class="tenant-code">{{ tenant.tenantCode }}</span>
+          </td>
+          <td>
+            <span class="plan-badge" [ngClass]="getPlanBadgeClass(tenant.plan)">
+              {{ tenant.plan }}
+            </span>
+          </td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusBadgeClass(tenant.status)">
+              {{ tenant.status }}
+            </span>
+          </td>
+          <td>
+            {{ tenant.currentUserCount || 0 }} / {{ tenant.maxUsers }}
+          </td>
+          <td>{{ formatDate(tenant.createdAt) }}</td>
+          <td>
+            <span [class.expiring-soon]="getDaysUntilExpiry(tenant.subscriptionEndDate) < 7">
+              {{ getDaysUntilExpiry(tenant.subscriptionEndDate) }} days
+            </span>
+          </td>
+          <td class="actions">
+            <button
+              class="btn-sm btn-info"
+              (click)="viewTenantDetails(tenant)"
+              title="View Details"
+            >
+              👁️
+            </button>
+            <button
+              *ngIf="tenant.status === 'active' || tenant.status === 'trial'"
+              class="btn-sm btn-danger"
+              (click)="suspendTenant(tenant)"
+              title="Suspend"
+            >
+              🚫
+            </button>
+            <button
+              *ngIf="tenant.status === 'suspended'"
+              class="btn-sm btn-success"
+              (click)="activateTenant(tenant)"
+              title="Activate"
+            >
+              ✅
+            </button>
+            <button
+              class="btn-sm btn-primary"
+              (click)="upgradePlan(tenant)"
+              title="Upgrade Plan"
+            >
+              ⬆️
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div *ngIf="!isLoading && filteredTenants.length === 0" class="no-data">
+      <p>No tenants found</p>
+    </div>
+  </div>
+</div>
+</app-main-layout>
