@@ -42,6 +42,38 @@ export enum Permission {
   MANAGE_TENANTS = 'manage_tenants',
   VIEW_ALL_TENANTS = 'view_all_tenants',
   SUSPEND_TENANT = 'suspend_tenant',
+  ACTIVATE_TENANT = 'activate_tenant',
+  DELETE_TENANT = 'delete_tenant',
+
+  // Tenant Configuration
+  VIEW_TENANT_CONFIG = 'view_tenant_config',
+  EDIT_TENANT_CONFIG = 'edit_tenant_config',
+  MANAGE_FEATURES = 'manage_features',
+  ENABLE_FEATURES = 'enable_features',
+  DISABLE_FEATURES = 'disable_features',
+  MANAGE_LIMITS = 'manage_limits',
+
+  // Feature Templates
+  VIEW_TEMPLATES = 'view_templates',
+  CREATE_TEMPLATE = 'create_template',
+  EDIT_TEMPLATE = 'edit_template',
+  DELETE_TEMPLATE = 'delete_template',
+
+  // Billing & Pricing
+  VIEW_BILLING = 'view_billing',
+  MANAGE_BILLING = 'manage_billing',
+  UPGRADE_PLAN = 'upgrade_plan',
+  DOWNGRADE_PLAN = 'downgrade_plan',
+  APPLY_DISCOUNT = 'apply_discount',
+
+  // Audit & Monitoring
+  VIEW_AUDIT_LOGS = 'view_audit_logs',
+  EXPORT_AUDIT_LOGS = 'export_audit_logs',
+  VIEW_USAGE_STATS = 'view_usage_stats',
+
+  // System Administration
+  MANAGE_SYSTEM_SETTINGS = 'manage_system_settings',
+  VIEW_SYSTEM_STATS = 'view_system_stats',
 }
 
 /**
