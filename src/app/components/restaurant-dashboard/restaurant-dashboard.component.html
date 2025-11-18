@@ -1,0 +1,399 @@
+<div class="restaurant-dashboard">
+  <!-- Header -->
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1>🍽️ Restaurant Dashboard</h1>
+      <p class="subtitle">Real-time restaurant operations overview</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="navigateToNewOrder()">
+        + New Order
+      </button>
+      <button class="btn btn-outline" (click)="refresh()" [disabled]="isLoading">
+        {{ isLoading ? '🔄 Refreshing...' : '🔄 Refresh' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading dashboard data...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading" class="dashboard-content">
+
+    <!-- Stats Overview -->
+    <div class="stats-section">
+      <div class="stats-grid">
+        <div class="stat-card card-primary">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ stats.todayOrders }}</div>
+            <div class="stat-label">Today's Orders</div>
+          </div>
+        </div>
+
+        <div class="stat-card card-success">
+          <div class="stat-icon">💰</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ formatCurrency(stats.todayRevenue) }}</div>
+            <div class="stat-label">Today's Revenue</div>
+          </div>
+        </div>
+
+        <div class="stat-card card-warning">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ stats.activeOrders }}</div>
+            <div class="stat-label">Active Orders</div>
+          </div>
+        </div>
+
+        <div class="stat-card card-info">
+          <div class="stat-icon">📋</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ stats.pendingKOTs }}</div>
+            <div class="stat-label">Pending KOTs</div>
+          </div>
+        </div>
+
+        <div class="stat-card card-accent">
+          <div class="stat-icon">🪑</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ stats.tableOccupancy }}%</div>
+            <div class="stat-label">Table Occupancy</div>
+          </div>
+        </div>
+
+        <div class="stat-card card-neutral">
+          <div class="stat-icon">💳</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ formatCurrency(stats.averageOrderValue) }}</div>
+            <div class="stat-label">Avg Order Value</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions-section">
+      <h2>Quick Actions</h2>
+      <div class="actions-grid">
+        <button class="action-btn" (click)="navigateToNewOrder()">
+          <div class="action-icon">🍽️</div>
+          <div class="action-label">New Order</div>
+        </button>
+        <button class="action-btn" (click)="navigateToTables()">
+          <div class="action-icon">🪑</div>
+          <div class="action-label">Manage Tables</div>
+        </button>
+        <button class="action-btn" (click)="navigateToMenu()">
+          <div class="action-icon">📖</div>
+          <div class="action-label">Manage Menu</div>
+        </button>
+        <button class="action-btn" (click)="navigateToKOTs()">
+          <div class="action-icon">📋</div>
+          <div class="action-label">View KOTs</div>
+        </button>
+        <button class="action-btn" (click)="navigateToOrders()">
+          <div class="action-icon">📊</div>
+          <div class="action-label">Order History</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Grid: Active Orders + Pending KOTs -->
+    <div class="main-grid">
+
+      <!-- Active Orders -->
+      <div class="section active-orders-section">
+        <div class="section-header">
+          <h2>🔴 Active Orders ({{ activeOrders.length }})</h2>
+          <button class="btn-link" (click)="navigateToOrders()">View All →</button>
+        </div>
+
+        <div class="orders-list" *ngIf="activeOrders.length > 0">
+          <div
+            *ngFor="let order of activeOrders.slice(0, 5)"
+            class="order-card"
+            (click)="viewOrderDetails(order)">
+            <div class="order-header">
+              <div class="order-number">
+                <span class="order-icon">{{ getOrderTypeIcon(order.type) }}</span>
+                <strong>{{ order.orderNumber }}</strong>
+              </div>
+              <span
+                class="order-status-badge"
+                [style.background-color]="getOrderStatusColor(order.status)">
+                {{ order.status | titlecase }}
+              </span>
+            </div>
+            <div class="order-details">
+              <div class="detail-row" *ngIf="order.tableNumber">
+                <span class="detail-label">Table:</span>
+                <span class="detail-value">{{ order.tableNumber }}</span>
+              </div>
+              <div class="detail-row" *ngIf="order.customerName">
+                <span class="detail-label">Customer:</span>
+                <span class="detail-value">{{ order.customerName }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Items:</span>
+                <span class="detail-value">{{ order.itemCount }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Total:</span>
+                <span class="detail-value bold">{{ formatCurrency(order.totalAmount) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Time:</span>
+                <span class="detail-value">{{ getElapsedMinutes(order.createdAt) }} min ago</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="activeOrders.length === 0">
+          <p>✨ No active orders at the moment</p>
+        </div>
+      </div>
+
+      <!-- Pending KOTs -->
+      <div class="section pending-kots-section">
+        <div class="section-header">
+          <h2>🔥 Pending KOTs ({{ pendingKOTs.length }})</h2>
+          <button class="btn-link" (click)="navigateToKOTs()">View All →</button>
+        </div>
+
+        <div class="kots-list" *ngIf="pendingKOTs.length > 0">
+          <div
+            *ngFor="let kot of pendingKOTs.slice(0, 5)"
+            class="kot-card"
+            [class.urgent]="getElapsedMinutes(kot.createdAt) > 15">
+            <div class="kot-header">
+              <div class="kot-number">
+                <strong>{{ kot.displayNumber }}</strong>
+                <span class="kot-order-num">{{ kot.orderNumber }}</span>
+              </div>
+              <span
+                class="kot-status-badge"
+                [style.background-color]="getKOTStatusColor(kot.status)">
+                {{ kot.status | titlecase }}
+              </span>
+            </div>
+            <div class="kot-details">
+              <div class="detail-row" *ngIf="kot.tableNumber">
+                <span class="detail-label">Table:</span>
+                <span class="detail-value">{{ kot.tableNumber }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Items:</span>
+                <span class="detail-value">{{ kot.itemCount }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Time:</span>
+                <span class="detail-value" [class.urgent-text]="getElapsedMinutes(kot.createdAt) > 15">
+                  {{ getElapsedMinutes(kot.createdAt) }} min ago
+                </span>
+              </div>
+            </div>
+            <div class="kot-actions">
+              <button class="btn-sm btn-outline" (click)="printKOT(kot); $event.stopPropagation()">
+                🖨️ Print
+              </button>
+              <button class="btn-sm btn-primary" (click)="acknowledgeKOT(kot); $event.stopPropagation()">
+                ✓ Acknowledge
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="pendingKOTs.length === 0">
+          <p>✅ All KOTs acknowledged!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-section">
+      <h2>📊 Today's Summary</h2>
+      <div class="summary-grid">
+
+        <!-- Order Summary -->
+        <div class="summary-card" *ngIf="orderSummary">
+          <h3>Orders Breakdown</h3>
+          <div class="summary-stats">
+            <div class="summary-row">
+              <span class="summary-label">Completed:</span>
+              <span class="summary-value">{{ orderSummary.completedOrders }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Preparing:</span>
+              <span class="summary-value">{{ orderSummary.preparingOrders }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Cancelled:</span>
+              <span class="summary-value">{{ orderSummary.cancelledOrders }}</span>
+            </div>
+            <div class="summary-row separator">
+              <span class="summary-label">Dine-in:</span>
+              <span class="summary-value">{{ orderSummary.dineInOrders }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Takeaway:</span>
+              <span class="summary-value">{{ orderSummary.takeawayOrders }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Delivery:</span>
+              <span class="summary-value">{{ orderSummary.deliveryOrders }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- KOT Summary -->
+        <div class="summary-card" *ngIf="kotSummary">
+          <h3>Kitchen Status</h3>
+          <div class="summary-stats">
+            <div class="summary-row">
+              <span class="summary-label">Total KOTs:</span>
+              <span class="summary-value">{{ kotSummary.totalKOTs }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Preparing:</span>
+              <span class="summary-value">{{ kotSummary.preparingKOTs }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Ready:</span>
+              <span class="summary-value">{{ kotSummary.readyKOTs }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Served:</span>
+              <span class="summary-value">{{ kotSummary.servedKOTs }}</span>
+            </div>
+            <div class="summary-row separator">
+              <span class="summary-label">Avg Prep Time:</span>
+              <span class="summary-value">{{ kotSummary.averagePreparationTime }} min</span>
+            </div>
+            <div class="summary-row" *ngIf="kotSummary.overdueKOTs > 0">
+              <span class="summary-label urgent-text">Overdue:</span>
+              <span class="summary-value urgent-text">{{ kotSummary.overdueKOTs }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Summary -->
+        <div class="summary-card" *ngIf="tableSummary">
+          <h3>Table Status</h3>
+          <div class="summary-stats">
+            <div class="summary-row">
+              <span class="summary-label">Total Tables:</span>
+              <span class="summary-value">{{ tableSummary.total }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Available:</span>
+              <span class="summary-value">{{ tableSummary.available }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Occupied:</span>
+              <span class="summary-value">{{ tableSummary.occupied }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Reserved:</span>
+              <span class="summary-value">{{ tableSummary.reserved }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Billed:</span>
+              <span class="summary-value">{{ tableSummary.billed }}</span>
+            </div>
+            <div class="summary-row separator">
+              <span class="summary-label">Occupancy Rate:</span>
+              <span class="summary-value">{{ tableSummary.occupancyRate }}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Menu Summary -->
+        <div class="summary-card" *ngIf="menuSummary">
+          <h3>Menu Status</h3>
+          <div class="summary-stats">
+            <div class="summary-row">
+              <span class="summary-label">Total Items:</span>
+              <span class="summary-value">{{ menuSummary.totalItems }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Available:</span>
+              <span class="summary-value">{{ menuSummary.availableItems }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Out of Stock:</span>
+              <span class="summary-value">{{ menuSummary.outOfStockItems }}</span>
+            </div>
+            <div class="summary-row separator">
+              <span class="summary-label">Categories:</span>
+              <span class="summary-value">{{ menuSummary.totalCategories }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Best Sellers:</span>
+              <span class="summary-value">{{ menuSummary.bestSellers.length }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">New Items:</span>
+              <span class="summary-value">{{ menuSummary.newItems.length }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="recent-section" *ngIf="recentOrders.length > 0">
+      <div class="section-header">
+        <h2>🕐 Recent Orders</h2>
+      </div>
+      <div class="recent-table-wrapper">
+        <table class="recent-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Order #</th>
+              <th>Type</th>
+              <th>Table/Customer</th>
+              <th>Items</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of recentOrders" (click)="viewOrderDetails(order)">
+              <td>{{ formatTime(order.createdAt) }}</td>
+              <td><strong>{{ order.orderNumber }}</strong></td>
+              <td>
+                <span class="type-badge">
+                  {{ getOrderTypeIcon(order.type) }} {{ order.type | titlecase }}
+                </span>
+              </td>
+              <td>
+                <span *ngIf="order.tableNumber">Table {{ order.tableNumber }}</span>
+                <span *ngIf="!order.tableNumber && order.customerName">{{ order.customerName }}</span>
+                <span *ngIf="!order.tableNumber && !order.customerName">-</span>
+              </td>
+              <td>{{ order.itemCount }}</td>
+              <td><strong>{{ formatCurrency(order.totalAmount) }}</strong></td>
+              <td>
+                <span
+                  class="status-badge"
+                  [style.background-color]="getOrderStatusColor(order.status)">
+                  {{ order.status | titlecase }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
