@@ -1,0 +1,151 @@
+<div class="kitchen-display" [class.fullscreen]="isFullscreen">
+  <!-- Header -->
+  <div class="kds-header">
+    <div class="header-left">
+      <h1>🍳 Kitchen Display</h1>
+      <span class="active-count">{{ filteredItems.length }} Active Orders</span>
+    </div>
+
+    <div class="header-center">
+      <div class="clock">{{ formatTime(currentTime) }}</div>
+      <div class="auto-refresh">
+        <span class="refresh-indicator" [class.loading]="isLoading"></span>
+        <span class="refresh-text">Auto-refresh: {{ refreshRate }}s</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="btn-refresh" (click)="refresh()">
+        🔄 Refresh
+      </button>
+      <button class="btn-fullscreen" (click)="toggleFullscreen()">
+        {{ isFullscreen ? '🗗 Exit Fullscreen' : '🗖 Fullscreen' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Station Tabs -->
+  <div class="station-tabs">
+    <button
+      class="station-tab"
+      [class.active]="selectedStation === 'all'"
+      (click)="selectStation('all')">
+      <span class="tab-label">All Stations</span>
+      <span class="tab-count">{{ displayItems.length }}</span>
+    </button>
+
+    <button
+      *ngFor="let station of stations"
+      class="station-tab"
+      [class.active]="selectedStation === station"
+      (click)="selectStation(station)">
+      <span class="tab-label">{{ getStationLabel(station) }}</span>
+      <span class="tab-count">{{ getStationCount(station) }}</span>
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading && filteredItems.length === 0" class="loading-state">
+    <div class="spinner-large"></div>
+    <p>Loading orders...</p>
+  </div>
+
+  <!-- Display Grid -->
+  <div *ngIf="!isLoading || filteredItems.length > 0" class="display-grid">
+    <div
+      *ngFor="let item of filteredItems"
+      class="kds-card"
+      [class]="getUrgencyClass(item)">
+
+      <!-- Card Header -->
+      <div class="kds-card-header">
+        <div class="card-kot-number">
+          <strong>{{ item.kotNumber }}</strong>
+          <span class="card-order-number">{{ item.orderNumber }}</span>
+        </div>
+
+        <div class="card-timer" [class]="getUrgencyClass(item) + '-timer'">
+          <span class="timer-value">{{ getTimeDisplay(item.elapsedMinutes) }}</span>
+          <span class="timer-label">Elapsed</span>
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div class="kds-card-body">
+        <div class="card-info-row" *ngIf="item.tableNumber">
+          <span class="info-icon">🪑</span>
+          <span class="info-text">Table {{ item.tableNumber }}</span>
+        </div>
+
+        <div class="card-info-row">
+          <span class="info-icon">📋</span>
+          <span class="info-text">{{ item.station }}</span>
+        </div>
+
+        <div class="card-items-section">
+          <div class="items-header">Items ({{ item.itemCount }})</div>
+          <div class="items-list">
+            <div *ngFor="let kotItem of item.items" class="item-row">
+              <span class="item-qty">{{ kotItem.quantity }}x</span>
+              <div class="item-info">
+                <strong>{{ kotItem.name }}</strong>
+                <div *ngIf="kotItem.variantName" class="item-detail">
+                  Size: {{ kotItem.variantName }}
+                </div>
+                <div *ngIf="kotItem.modifiers && kotItem.modifiers.length > 0" class="item-detail">
+                  Add: {{ kotItem.modifiers.map(m => m.name).join(', ') }}
+                </div>
+                <div *ngIf="kotItem.specialInstructions" class="item-special">
+                  ⚠️ {{ kotItem.specialInstructions }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Footer / Actions -->
+      <div class="kds-card-footer">
+        <div class="status-badge" [style.background-color]="getStatusColor(item.status)">
+          {{ item.status | titlecase }}
+        </div>
+
+        <div class="card-actions">
+          <button
+            *ngIf="item.status === KOTStatus.PENDING"
+            class="action-btn btn-acknowledge"
+            (click)="acknowledgeItem(item)">
+            ✓ Acknowledge
+          </button>
+
+          <button
+            *ngIf="item.status === KOTStatus.ACKNOWLEDGED"
+            class="action-btn btn-start"
+            (click)="startPreparing(item)">
+            🔥 Start
+          </button>
+
+          <button
+            *ngIf="item.status === KOTStatus.PREPARING"
+            class="action-btn btn-ready"
+            (click)="markReady(item)">
+            ✓ Ready
+          </button>
+
+          <span
+            *ngIf="item.status === KOTStatus.READY"
+            class="ready-label">
+            ✓ Ready for Service
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="filteredItems.length === 0" class="empty-display">
+      <div class="empty-icon">✨</div>
+      <h2>All Clear!</h2>
+      <p>No active orders at the moment</p>
+    </div>
+  </div>
+</div>
