@@ -1,0 +1,826 @@
+<div class="menu-management">
+  <!-- Header -->
+  <div class="menu-header">
+    <div class="header-content">
+      <h1>📖 Menu Management</h1>
+      <p class="subtitle">Manage categories, items, variants, and pricing</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="openCategoryModal()">
+        + New Category
+      </button>
+      <button class="btn btn-primary" (click)="openItemModal()">
+        + New Item
+      </button>
+      <button class="btn btn-outline" (click)="loadData()" [disabled]="isLoading">
+        {{ isLoading ? '🔄 Refreshing...' : '🔄 Refresh' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading menu data...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading" class="menu-content">
+    <!-- Sidebar: Categories -->
+    <div class="categories-sidebar">
+      <div class="sidebar-header">
+        <h2>Categories</h2>
+        <span class="category-count">{{ categories.length }}</span>
+      </div>
+
+      <div class="category-list">
+        <div
+          class="category-item"
+          [class.active]="!selectedCategory"
+          (click)="selectCategory(null)">
+          <span class="category-icon">🍽️</span>
+          <span class="category-name">All Items</span>
+          <span class="item-count">{{ items.length }}</span>
+        </div>
+
+        <div
+          *ngFor="let category of categories"
+          class="category-item"
+          [class.active]="selectedCategory?.id === category.id"
+          (click)="selectCategory(category)">
+          <span class="category-icon">{{ category.icon || '📁' }}</span>
+          <div class="category-info">
+            <span class="category-name">{{ category.name }}</span>
+            <span class="item-count">{{ category.itemCount }}</span>
+          </div>
+          <div class="category-actions">
+            <button
+              class="btn-icon"
+              (click)="openCategoryModal(category); $event.stopPropagation()"
+              title="Edit">
+              ✏️
+            </button>
+            <button
+              class="btn-icon"
+              (click)="deleteCategory(category); $event.stopPropagation()"
+              title="Delete">
+              🗑️
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="categories.length === 0" class="empty-state-small">
+          <p>No categories yet</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main: Items -->
+    <div class="items-main">
+      <!-- Toolbar -->
+      <div class="items-toolbar">
+        <div class="toolbar-left">
+          <h2>
+            {{ selectedCategory ? selectedCategory.name : 'All Items' }}
+            <span class="items-count">({{ filteredItems.length }})</span>
+          </h2>
+        </div>
+
+        <div class="toolbar-right">
+          <!-- Search -->
+          <div class="search-box">
+            <input
+              type="text"
+              [(ngModel)]="searchTerm"
+              (input)="onSearchChange()"
+              placeholder="Search items..."
+              class="search-input" />
+            <span class="search-icon">🔍</span>
+          </div>
+
+          <!-- Filters -->
+          <select [(ngModel)]="filterFoodType" (change)="onFilterChange()" class="filter-select">
+            <option value="all">All Types</option>
+            <option *ngFor="let type of foodTypes" [value]="type">
+              {{ getFoodTypeIcon(type) }} {{ getFoodTypeLabel(type) }}
+            </option>
+          </select>
+
+          <select [(ngModel)]="filterAvailability" (change)="onFilterChange()" class="filter-select">
+            <option value="all">All Items</option>
+            <option value="available">Available</option>
+            <option value="unavailable">Out of Stock</option>
+          </select>
+
+          <!-- View Toggle -->
+          <div class="view-toggle">
+            <button
+              class="view-btn"
+              [class.active]="viewMode === 'grid'"
+              (click)="viewMode = 'grid'"
+              title="Grid View">
+              ▦
+            </button>
+            <button
+              class="view-btn"
+              [class.active]="viewMode === 'list'"
+              (click)="viewMode = 'list'"
+              title="List View">
+              ☰
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Items Grid -->
+      <div *ngIf="viewMode === 'grid'" class="items-grid">
+        <div
+          *ngFor="let item of filteredItems"
+          class="item-card"
+          [class.unavailable]="!item.isAvailable"
+          (click)="viewItemDetails(item)">
+          <div class="item-image" [style.background-image]="item.imageUrl ? 'url(' + item.imageUrl + ')' : 'none'">
+            <div class="item-badges">
+              <span *ngIf="item.isFeatured" class="badge badge-featured">⭐ Featured</span>
+              <span *ngIf="item.isBestSeller" class="badge badge-bestseller">🏆 Best Seller</span>
+              <span *ngIf="item.isNew" class="badge badge-new">✨ New</span>
+            </div>
+            <div class="food-type-indicator" [class]="'food-type-' + item.foodType">
+              {{ getFoodTypeIcon(item.foodType) }}
+            </div>
+          </div>
+
+          <div class="item-content">
+            <div class="item-header">
+              <h3 class="item-name">{{ item.name }}</h3>
+              <span class="item-price">{{ formatCurrency(item.basePrice) }}</span>
+            </div>
+
+            <p class="item-description" *ngIf="item.description">
+              {{ item.description }}
+            </p>
+
+            <div class="item-meta">
+              <span class="meta-item" *ngIf="item.spiceLevel && item.spiceLevel !== SpiceLevel.NONE">
+                🌶️ {{ getSpiceLevelLabel(item.spiceLevel) }}
+              </span>
+              <span class="meta-item">
+                ⏱️ {{ item.preparationTime }} min
+              </span>
+              <span class="meta-item" *ngIf="item.variants && item.variants.length > 0">
+                🔀 {{ item.variants.length }} variants
+              </span>
+            </div>
+
+            <div class="item-footer">
+              <div class="availability-toggle">
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    [checked]="item.isAvailable"
+                    (change)="toggleItemAvailability(item); $event.stopPropagation()" />
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">{{ item.isAvailable ? 'Available' : 'Out of Stock' }}</span>
+              </div>
+
+              <div class="item-actions">
+                <button
+                  class="btn-sm btn-outline"
+                  (click)="openItemModal(item); $event.stopPropagation()">
+                  ✏️ Edit
+                </button>
+                <button
+                  class="btn-sm btn-danger"
+                  (click)="deleteItem(item); $event.stopPropagation()">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="filteredItems.length === 0" class="empty-state">
+          <p>{{ searchTerm ? 'No items found matching your search' : 'No items in this category yet' }}</p>
+          <button class="btn btn-primary" (click)="openItemModal()">+ Add First Item</button>
+        </div>
+      </div>
+
+      <!-- Items List -->
+      <div *ngIf="viewMode === 'list'" class="items-list">
+        <div
+          *ngFor="let item of filteredItems"
+          class="list-item"
+          [class.unavailable]="!item.isAvailable">
+          <div class="list-item-image" [style.background-image]="item.imageUrl ? 'url(' + item.imageUrl + ')' : 'none'">
+            <div class="food-type-indicator" [class]="'food-type-' + item.foodType">
+              {{ getFoodTypeIcon(item.foodType) }}
+            </div>
+          </div>
+
+          <div class="list-item-content">
+            <div class="list-item-header">
+              <div class="list-item-title">
+                <h3>{{ item.name }}</h3>
+                <div class="item-badges-inline">
+                  <span *ngIf="item.isFeatured" class="badge badge-featured">⭐</span>
+                  <span *ngIf="item.isBestSeller" class="badge badge-bestseller">🏆</span>
+                  <span *ngIf="item.isNew" class="badge badge-new">✨</span>
+                </div>
+              </div>
+              <span class="list-item-price">{{ formatCurrency(item.basePrice) }}</span>
+            </div>
+
+            <p class="list-item-description" *ngIf="item.description">
+              {{ item.description }}
+            </p>
+
+            <div class="list-item-meta">
+              <span class="meta-tag">{{ getCategoryName(item.categoryId) }}</span>
+              <span class="meta-tag" *ngIf="item.spiceLevel && item.spiceLevel !== SpiceLevel.NONE">
+                🌶️ {{ getSpiceLevelLabel(item.spiceLevel) }}
+              </span>
+              <span class="meta-tag">⏱️ {{ item.preparationTime }} min</span>
+              <span class="meta-tag" *ngIf="item.variants && item.variants.length > 0">
+                {{ item.variants.length }} variants
+              </span>
+              <span class="meta-tag" *ngIf="item.modifiers && item.modifiers.length > 0">
+                {{ item.modifiers.length }} modifiers
+              </span>
+            </div>
+          </div>
+
+          <div class="list-item-actions">
+            <div class="availability-toggle">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  [checked]="item.isAvailable"
+                  (change)="toggleItemAvailability(item)" />
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label">{{ item.isAvailable ? 'Available' : 'Out of Stock' }}</span>
+            </div>
+
+            <div class="action-buttons">
+              <button class="btn-sm btn-outline" (click)="viewItemDetails(item)">
+                👁️ View
+              </button>
+              <button class="btn-sm btn-outline" (click)="openItemModal(item)">
+                ✏️ Edit
+              </button>
+              <button class="btn-sm btn-danger" (click)="deleteItem(item)">
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="filteredItems.length === 0" class="empty-state">
+          <p>{{ searchTerm ? 'No items found matching your search' : 'No items in this category yet' }}</p>
+          <button class="btn btn-primary" (click)="openItemModal()">+ Add First Item</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div *ngIf="showModal" class="modal-overlay" (click)="closeModal()">
+
+    <!-- Category Modal -->
+    <div *ngIf="modalMode === 'category'" class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode ? 'Edit Category' : 'New Category' }}</h2>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <form (submit)="$event.preventDefault(); saveCategory()">
+          <div class="form-group">
+            <label>Category Name *</label>
+            <input
+              type="text"
+              [(ngModel)]="categoryForm.name"
+              name="name"
+              required
+              class="form-control"
+              placeholder="e.g., Starters, Main Course" />
+          </div>
+
+          <div class="form-group">
+            <label>Description</label>
+            <textarea
+              [(ngModel)]="categoryForm.description"
+              name="description"
+              rows="3"
+              class="form-control"
+              placeholder="Brief description of this category"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Parent Category</label>
+              <select [(ngModel)]="categoryForm.parentId" name="parentId" class="form-control">
+                <option [ngValue]="null">None (Root Category)</option>
+                <option *ngFor="let cat of allCategories" [ngValue]="cat.id">
+                  {{ cat.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Icon</label>
+              <input
+                type="text"
+                [(ngModel)]="categoryForm.icon"
+                name="icon"
+                class="form-control"
+                placeholder="e.g., 🍕 🍔 🍜" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Display Order</label>
+            <input
+              type="number"
+              [(ngModel)]="categoryForm.displayOrder"
+              name="displayOrder"
+              class="form-control"
+              min="0" />
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [(ngModel)]="categoryForm.isActive"
+                name="isActive" />
+              <span>Active</span>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              {{ isEditMode ? 'Update' : 'Create' }} Category
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Item Modal -->
+    <div *ngIf="modalMode === 'item'" class="modal modal-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode ? 'Edit Item' : 'New Item' }}</h2>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button
+          class="tab-btn"
+          [class.active]="currentItemTab === 'basic'"
+          (click)="currentItemTab = 'basic'">
+          Basic Info
+        </button>
+        <button
+          class="tab-btn"
+          [class.active]="currentItemTab === 'pricing'"
+          (click)="currentItemTab = 'pricing'">
+          Pricing & Options
+        </button>
+        <button
+          class="tab-btn"
+          [class.active]="currentItemTab === 'variants'"
+          (click)="currentItemTab = 'variants'">
+          Variants ({{ itemVariants.length }})
+        </button>
+        <button
+          class="tab-btn"
+          [class.active]="currentItemTab === 'modifiers'"
+          (click)="currentItemTab = 'modifiers'">
+          Modifiers ({{ itemModifiers.length }})
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <form (submit)="$event.preventDefault(); saveItem()">
+
+          <!-- Basic Info Tab -->
+          <div *ngIf="currentItemTab === 'basic'" class="tab-content">
+            <div class="form-group">
+              <label>Item Name *</label>
+              <input
+                type="text"
+                [(ngModel)]="itemForm.name"
+                name="name"
+                required
+                class="form-control"
+                placeholder="e.g., Margherita Pizza" />
+            </div>
+
+            <div class="form-group">
+              <label>Description</label>
+              <textarea
+                [(ngModel)]="itemForm.description"
+                name="description"
+                rows="3"
+                class="form-control"
+                placeholder="Describe the item, ingredients, etc."></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Category *</label>
+                <select [(ngModel)]="itemForm.categoryId" name="categoryId" required class="form-control">
+                  <option value="">Select Category</option>
+                  <option *ngFor="let cat of allCategories" [value]="cat.id">
+                    {{ cat.name }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Food Type *</label>
+                <select [(ngModel)]="itemForm.foodType" name="foodType" required class="form-control">
+                  <option *ngFor="let type of foodTypes" [value]="type">
+                    {{ getFoodTypeIcon(type) }} {{ getFoodTypeLabel(type) }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Spice Level</label>
+                <select [(ngModel)]="itemForm.spiceLevel" name="spiceLevel" class="form-control">
+                  <option *ngFor="let level of spiceLevels" [value]="level">
+                    {{ getSpiceLevelLabel(level) }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Preparation Time (minutes) *</label>
+                <input
+                  type="number"
+                  [(ngModel)]="itemForm.preparationTime"
+                  name="preparationTime"
+                  required
+                  min="1"
+                  class="form-control" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Image URL</label>
+              <input
+                type="text"
+                [(ngModel)]="itemForm.imageUrl"
+                name="imageUrl"
+                class="form-control"
+                placeholder="https://example.com/image.jpg" />
+            </div>
+
+            <div class="form-group">
+              <label>Allergens</label>
+              <div class="checkbox-grid">
+                <label *ngFor="let allergen of allergenOptions" class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [checked]="isAllergenSelected(allergen)"
+                    (change)="toggleAllergen(allergen)" />
+                  <span>{{ allergen }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Tags (Press Enter to add)</label>
+              <div class="tags-container">
+                <span *ngFor="let tag of itemForm.tags" class="tag">
+                  {{ tag }}
+                  <button type="button" class="tag-remove" (click)="removeTag(tag)">✕</button>
+                </span>
+                <input
+                  type="text"
+                  class="tag-input"
+                  placeholder="Add tag..."
+                  (keydown)="addTag($event)" />
+              </div>
+            </div>
+
+            <div class="form-checkboxes">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="itemForm.isAvailable" name="isAvailable" />
+                <span>Available</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="itemForm.isFeatured" name="isFeatured" />
+                <span>⭐ Featured</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="itemForm.isPopular" name="isPopular" />
+                <span>🔥 Popular</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="itemForm.isBestSeller" name="isBestSeller" />
+                <span>🏆 Best Seller</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="itemForm.isNew" name="isNew" />
+                <span>✨ New</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Pricing Tab -->
+          <div *ngIf="currentItemTab === 'pricing'" class="tab-content">
+            <div class="form-group">
+              <label>Base Price (₹) *</label>
+              <input
+                type="number"
+                [(ngModel)]="itemForm.basePrice"
+                name="basePrice"
+                required
+                min="0"
+                step="0.01"
+                class="form-control"
+                placeholder="0.00" />
+            </div>
+
+            <div class="info-box">
+              <p><strong>💡 Tip:</strong> Use variants (next tab) to offer different sizes or options with price adjustments.</p>
+              <p><strong>💡 Tip:</strong> Use modifiers to add customizations that customers can add for an extra charge.</p>
+            </div>
+          </div>
+
+          <!-- Variants Tab -->
+          <div *ngIf="currentItemTab === 'variants'" class="tab-content">
+            <div class="section-header">
+              <h3>Variants</h3>
+              <button type="button" class="btn btn-sm btn-primary" (click)="addVariant()">
+                + Add Variant
+              </button>
+            </div>
+
+            <p class="help-text">Variants allow customers to choose different sizes or options (e.g., Small, Medium, Large).</p>
+
+            <!-- Variant Form -->
+            <div *ngIf="editingVariant" class="variant-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Variant Name *</label>
+                  <input
+                    type="text"
+                    [(ngModel)]="editingVariant.name"
+                    [ngModelOptions]="{standalone: true}"
+                    class="form-control"
+                    placeholder="e.g., Small, Medium, Large" />
+                </div>
+
+                <div class="form-group">
+                  <label>Price Adjustment (₹)</label>
+                  <input
+                    type="number"
+                    [(ngModel)]="editingVariant.priceAdjustment"
+                    [ngModelOptions]="{standalone: true}"
+                    step="0.01"
+                    class="form-control"
+                    placeholder="0.00" />
+                  <small>Positive value adds to base price, negative value reduces it</small>
+                </div>
+
+                <div class="form-group">
+                  <label class="checkbox-label">
+                    <input
+                      type="checkbox"
+                      [(ngModel)]="editingVariant.isAvailable"
+                      [ngModelOptions]="{standalone: true}" />
+                    <span>Available</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn btn-sm btn-outline" (click)="cancelVariantEdit()">
+                  Cancel
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" (click)="saveVariant()">
+                  Save Variant
+                </button>
+              </div>
+            </div>
+
+            <!-- Variants List -->
+            <div class="variants-list">
+              <div *ngFor="let variant of itemVariants" class="variant-item">
+                <div class="variant-info">
+                  <strong>{{ variant.name }}</strong>
+                  <span class="variant-price">
+                    {{ variant.priceAdjustment >= 0 ? '+' : '' }}{{ formatCurrency(variant.priceAdjustment) }}
+                  </span>
+                  <span class="variant-status" [class.unavailable]="!variant.isAvailable">
+                    {{ variant.isAvailable ? '✓ Available' : '✗ Unavailable' }}
+                  </span>
+                </div>
+                <div class="variant-actions">
+                  <button type="button" class="btn-icon" (click)="editVariant(variant)">✏️</button>
+                  <button type="button" class="btn-icon" (click)="removeVariant(variant.id)">🗑️</button>
+                </div>
+              </div>
+
+              <div *ngIf="itemVariants.length === 0 && !editingVariant" class="empty-state-small">
+                <p>No variants added yet</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modifiers Tab -->
+          <div *ngIf="currentItemTab === 'modifiers'" class="tab-content">
+            <div class="section-header">
+              <h3>Modifiers</h3>
+              <button type="button" class="btn btn-sm btn-primary" (click)="addModifier()">
+                + Add Modifier
+              </button>
+            </div>
+
+            <p class="help-text">Modifiers are add-ons or customizations customers can add (e.g., Extra Cheese, Add Bacon).</p>
+
+            <!-- Modifier Form -->
+            <div *ngIf="editingModifier" class="modifier-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Modifier Name *</label>
+                  <input
+                    type="text"
+                    [(ngModel)]="editingModifier.name"
+                    [ngModelOptions]="{standalone: true}"
+                    class="form-control"
+                    placeholder="e.g., Extra Cheese, Add Bacon" />
+                </div>
+
+                <div class="form-group">
+                  <label>Price (₹) *</label>
+                  <input
+                    type="number"
+                    [(ngModel)]="editingModifier.price"
+                    [ngModelOptions]="{standalone: true}"
+                    min="0"
+                    step="0.01"
+                    class="form-control"
+                    placeholder="0.00" />
+                </div>
+
+                <div class="form-group">
+                  <label class="checkbox-label">
+                    <input
+                      type="checkbox"
+                      [(ngModel)]="editingModifier.isAvailable"
+                      [ngModelOptions]="{standalone: true}" />
+                    <span>Available</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn btn-sm btn-outline" (click)="cancelModifierEdit()">
+                  Cancel
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" (click)="saveModifier()">
+                  Save Modifier
+                </button>
+              </div>
+            </div>
+
+            <!-- Modifiers List -->
+            <div class="modifiers-list">
+              <div *ngFor="let modifier of itemModifiers" class="modifier-item">
+                <div class="modifier-info">
+                  <strong>{{ modifier.name }}</strong>
+                  <span class="modifier-price">{{ formatCurrency(modifier.price) }}</span>
+                  <span class="modifier-status" [class.unavailable]="!modifier.isAvailable">
+                    {{ modifier.isAvailable ? '✓ Available' : '✗ Unavailable' }}
+                  </span>
+                </div>
+                <div class="modifier-actions">
+                  <button type="button" class="btn-icon" (click)="editModifier(modifier)">✏️</button>
+                  <button type="button" class="btn-icon" (click)="removeModifier(modifier.id)">🗑️</button>
+                </div>
+              </div>
+
+              <div *ngIf="itemModifiers.length === 0 && !editingModifier" class="empty-state-small">
+                <p>No modifiers added yet</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              {{ isEditMode ? 'Update' : 'Create' }} Item
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Item Details Modal -->
+    <div *ngIf="modalMode === 'item-details' && selectedItem" class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ selectedItem.name }}</h2>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="item-details">
+          <div class="detail-image" *ngIf="selectedItem.imageUrl" [style.background-image]="'url(' + selectedItem.imageUrl + ')'"></div>
+
+          <div class="detail-section">
+            <h3>Basic Information</h3>
+            <div class="detail-row">
+              <span class="detail-label">Category:</span>
+              <span class="detail-value">{{ getCategoryName(selectedItem.categoryId) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Food Type:</span>
+              <span class="detail-value">{{ getFoodTypeIcon(selectedItem.foodType) }} {{ getFoodTypeLabel(selectedItem.foodType) }}</span>
+            </div>
+            <div class="detail-row" *ngIf="selectedItem.spiceLevel && selectedItem.spiceLevel !== SpiceLevel.NONE">
+              <span class="detail-label">Spice Level:</span>
+              <span class="detail-value">🌶️ {{ getSpiceLevelLabel(selectedItem.spiceLevel) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Base Price:</span>
+              <span class="detail-value">{{ formatCurrency(selectedItem.basePrice) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Preparation Time:</span>
+              <span class="detail-value">⏱️ {{ selectedItem.preparationTime }} minutes</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Availability:</span>
+              <span class="detail-value">{{ selectedItem.isAvailable ? '✅ Available' : '❌ Out of Stock' }}</span>
+            </div>
+          </div>
+
+          <div class="detail-section" *ngIf="selectedItem.description">
+            <h3>Description</h3>
+            <p>{{ selectedItem.description }}</p>
+          </div>
+
+          <div class="detail-section" *ngIf="selectedItem.variants && selectedItem.variants.length > 0">
+            <h3>Variants ({{ selectedItem.variants.length }})</h3>
+            <div class="variants-display">
+              <div *ngFor="let variant of selectedItem.variants" class="variant-display-item">
+                <strong>{{ variant.name }}</strong>
+                <span>{{ variant.priceAdjustment >= 0 ? '+' : '' }}{{ formatCurrency(variant.priceAdjustment) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section" *ngIf="selectedItem.modifiers && selectedItem.modifiers.length > 0">
+            <h3>Modifiers ({{ selectedItem.modifiers.length }})</h3>
+            <div class="modifiers-display">
+              <div *ngFor="let modifier of selectedItem.modifiers" class="modifier-display-item">
+                <strong>{{ modifier.name }}</strong>
+                <span>{{ formatCurrency(modifier.price) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section" *ngIf="selectedItem.allergens && selectedItem.allergens.length > 0">
+            <h3>Allergens</h3>
+            <div class="tags-display">
+              <span *ngFor="let allergen of selectedItem.allergens" class="tag">{{ allergen }}</span>
+            </div>
+          </div>
+
+          <div class="detail-section" *ngIf="selectedItem.tags && selectedItem.tags.length > 0">
+            <h3>Tags</h3>
+            <div class="tags-display">
+              <span *ngFor="let tag of selectedItem.tags" class="tag">{{ tag }}</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h3>Status</h3>
+            <div class="badges-display">
+              <span *ngIf="selectedItem.isFeatured" class="badge badge-featured">⭐ Featured</span>
+              <span *ngIf="selectedItem.isPopular" class="badge badge-popular">🔥 Popular</span>
+              <span *ngIf="selectedItem.isBestSeller" class="badge badge-bestseller">🏆 Best Seller</span>
+              <span *ngIf="selectedItem.isNew" class="badge badge-new">✨ New</span>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <button class="btn btn-primary" (click)="openItemModal(selectedItem); closeModal()">
+              ✏️ Edit Item
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
