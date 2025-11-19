@@ -21,6 +21,12 @@ import { TenantConfigEditorComponent } from './components/tenant-config-editor/t
 import { TemplateManagerComponent } from './components/template-manager/template-manager.component';
 import { AuditLogViewerComponent } from './components/audit-log-viewer/audit-log-viewer.component';
 import { UsageMonitoringComponent } from './components/usage-monitoring/usage-monitoring.component';
+import { RestaurantDashboardComponent } from './components/restaurant-dashboard/restaurant-dashboard.component';
+import { TableManagementComponent } from './components/table-management/table-management.component';
+import { MenuManagementComponent } from './components/menu-management/menu-management.component';
+import { OrderManagementComponent } from './components/order-management/order-management.component';
+import { KOTManagementComponent } from './components/kot-management/kot-management.component';
+import { KitchenDisplaySystemComponent } from './components/kitchen-display-system/kitchen-display-system.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -117,6 +123,42 @@ export const routes: Routes = [
       {
         path: 'old',
         component: SuperAdminComponent
+      }
+    ]
+  },
+  // Restaurant Module Routes
+  {
+    path: 'restaurant',
+    canActivate: [AuthGuard],
+    children: [
+      {
+        path: '',
+        redirectTo: 'dashboard',
+        pathMatch: 'full'
+      },
+      {
+        path: 'dashboard',
+        component: RestaurantDashboardComponent
+      },
+      {
+        path: 'tables',
+        component: TableManagementComponent
+      },
+      {
+        path: 'menu',
+        component: MenuManagementComponent
+      },
+      {
+        path: 'orders',
+        component: OrderManagementComponent
+      },
+      {
+        path: 'kot',
+        component: KOTManagementComponent
+      },
+      {
+        path: 'kitchen-display',
+        component: KitchenDisplaySystemComponent
       }
     ]
   },
