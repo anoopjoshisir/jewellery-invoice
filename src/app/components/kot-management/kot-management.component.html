@@ -1,0 +1,421 @@
+<div class="kot-management">
+  <!-- Header -->
+  <div class="kot-header">
+    <div class="header-content">
+      <h1>📋 KOT Management</h1>
+      <p class="subtitle">Kitchen Order Tickets - View and manage kitchen orders</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="loadData()" [disabled]="isLoading">
+        {{ isLoading ? '🔄 Refreshing...' : '🔄 Refresh' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading KOTs...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading" class="kot-content">
+
+    <!-- Filters -->
+    <div class="kot-filters">
+      <div class="filter-group">
+        <label>Search</label>
+        <div class="search-box">
+          <input
+            type="text"
+            [(ngModel)]="searchTerm"
+            (input)="onFilterChange()"
+            placeholder="Search KOT number, order, table..."
+            class="search-input" />
+          <span class="search-icon">🔍</span>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label>Status</label>
+        <select [(ngModel)]="filterStatus" (change)="onFilterChange()" class="filter-select">
+          <option value="all">All Status</option>
+          <option *ngFor="let status of kotStatuses" [value]="status">
+            {{ status | titlecase }}
+          </option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Station</label>
+        <select [(ngModel)]="filterStation" (change)="onFilterChange()" class="filter-select">
+          <option value="all">All Stations</option>
+          <option *ngFor="let station of kitchenStations" [value]="station">
+            {{ getStationLabel(station) }}
+          </option>
+        </select>
+      </div>
+
+      <div class="filter-stats">
+        <div class="stat-item">
+          <span class="stat-value">{{ filteredKOTs.length }}</span>
+          <span class="stat-label">KOTs</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KOT Grid -->
+    <div class="kot-grid">
+      <div
+        *ngFor="let kot of filteredKOTs"
+        class="kot-card"
+        [class.urgent]="isUrgent(kot)"
+        [class.cancelled]="kot.status === KOTStatus.CANCELLED"
+        (click)="viewKOTDetails(kot)">
+
+        <!-- Card Header -->
+        <div class="kot-card-header">
+          <div class="kot-number">
+            <strong>{{ kot.displayNumber }}</strong>
+            <span class="kot-order">{{ kot.orderNumber }}</span>
+          </div>
+          <span
+            class="status-badge"
+            [style.background-color]="getKOTStatusColor(kot.status)">
+            {{ kot.status | titlecase }}
+          </span>
+        </div>
+
+        <!-- Card Body -->
+        <div class="kot-card-body">
+          <div class="kot-info-row">
+            <span class="info-label">Station:</span>
+            <span class="info-value station-badge">{{ getStationLabel(kot.station) }}</span>
+          </div>
+
+          <div *ngIf="kot.tableNumber" class="kot-info-row">
+            <span class="info-label">Table:</span>
+            <span class="info-value">{{ kot.tableNumber }}</span>
+          </div>
+
+          <div class="kot-info-row">
+            <span class="info-label">Items:</span>
+            <span class="info-value">{{ kot.itemCount }}</span>
+          </div>
+
+          <div class="kot-info-row">
+            <span class="info-label">Time:</span>
+            <span class="info-value" [class.urgent-text]="isUrgent(kot)">
+              {{ getElapsedMinutes(kot.createdAt) }} min ago
+            </span>
+          </div>
+
+          <div *ngIf="kot.priority" class="kot-info-row">
+            <span class="info-label">Priority:</span>
+            <span class="priority-badge" [class]="'priority-' + kot.priority">
+              {{ kot.priority | titlecase }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Card Actions -->
+        <div class="kot-card-actions" (click)="$event.stopPropagation()">
+          <button
+            *ngIf="kot.status === KOTStatus.PENDING"
+            class="btn-sm btn-primary"
+            (click)="acknowledgeKOT(kot)">
+            ✓ Acknowledge
+          </button>
+
+          <button
+            *ngIf="kot.status === KOTStatus.ACKNOWLEDGED"
+            class="btn-sm btn-primary"
+            (click)="startPreparing(kot)">
+            🔥 Start Preparing
+          </button>
+
+          <button
+            *ngIf="kot.status === KOTStatus.PREPARING"
+            class="btn-sm btn-primary"
+            (click)="markReady(kot)">
+            ✓ Mark Ready
+          </button>
+
+          <button
+            *ngIf="kot.status === KOTStatus.READY"
+            class="btn-sm btn-primary"
+            (click)="markServed(kot)">
+            ✓ Mark Served
+          </button>
+
+          <button
+            class="btn-sm btn-outline"
+            (click)="printKOT(kot)">
+            🖨️ Print
+          </button>
+
+          <button
+            *ngIf="canUpdateStatus(kot.status)"
+            class="btn-sm btn-danger"
+            (click)="cancelKOT(kot)">
+            ✕ Cancel
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="filteredKOTs.length === 0" class="empty-state">
+        <p>{{ searchTerm ? 'No KOTs found matching your search' : 'No KOTs available' }}</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- KOT Details Modal -->
+  <div *ngIf="showKOTDetailsModal && selectedKOT" class="modal-overlay" (click)="closeKOTDetailsModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>{{ selectedKOT.displayNumber }}</h2>
+          <p class="subtitle">Order: {{ selectedKOT.orderNumber }}</p>
+        </div>
+        <button class="btn-close" (click)="closeKOTDetailsModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="kot-details">
+
+          <!-- Status Section -->
+          <div class="details-section">
+            <div class="status-row">
+              <span
+                class="status-badge-large"
+                [style.background-color]="getKOTStatusColor(selectedKOT.status)">
+                {{ selectedKOT.status | titlecase }}
+              </span>
+
+              <div class="kot-actions">
+                <button
+                  *ngIf="selectedKOT.status === KOTStatus.PENDING"
+                  class="btn btn-sm btn-primary"
+                  (click)="acknowledgeKOT(selectedKOT); closeKOTDetailsModal()">
+                  ✓ Acknowledge
+                </button>
+
+                <button
+                  *ngIf="selectedKOT.status === KOTStatus.ACKNOWLEDGED"
+                  class="btn btn-sm btn-primary"
+                  (click)="startPreparing(selectedKOT); closeKOTDetailsModal()">
+                  🔥 Start Preparing
+                </button>
+
+                <button
+                  *ngIf="selectedKOT.status === KOTStatus.PREPARING"
+                  class="btn btn-sm btn-primary"
+                  (click)="markReady(selectedKOT); closeKOTDetailsModal()">
+                  ✓ Mark Ready
+                </button>
+
+                <button
+                  *ngIf="selectedKOT.status === KOTStatus.READY"
+                  class="btn btn-sm btn-primary"
+                  (click)="markServed(selectedKOT); closeKOTDetailsModal()">
+                  ✓ Mark Served
+                </button>
+
+                <button
+                  class="btn btn-sm btn-outline"
+                  (click)="printKOT(selectedKOT)">
+                  🖨️ Print
+                </button>
+
+                <button
+                  class="btn btn-sm btn-outline"
+                  (click)="reprintKOT(selectedKOT)">
+                  🖨️ Reprint
+                </button>
+
+                <button
+                  *ngIf="canUpdateStatus(selectedKOT.status)"
+                  class="btn btn-sm btn-danger"
+                  (click)="cancelKOT(selectedKOT); closeKOTDetailsModal()">
+                  ✕ Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Information -->
+          <div class="details-section">
+            <h3>Order Information</h3>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="detail-label">Order Number:</span>
+                <span>{{ selectedKOT.orderNumber }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">KOT Number:</span>
+                <span>{{ selectedKOT.displayNumber }}</span>
+              </div>
+              <div *ngIf="selectedKOT.tableNumber" class="detail-item">
+                <span class="detail-label">Table:</span>
+                <span>{{ selectedKOT.tableNumber }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Station:</span>
+                <span class="station-badge">{{ getStationLabel(selectedKOT.station) }}</span>
+              </div>
+              <div *ngIf="selectedKOT.priority" class="detail-item">
+                <span class="detail-label">Priority:</span>
+                <span class="priority-badge" [class]="'priority-' + selectedKOT.priority">
+                  {{ selectedKOT.priority | titlecase }}
+                </span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Created:</span>
+                <span>{{ formatDate(selectedKOT.createdAt) }} {{ formatTime(selectedKOT.createdAt) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Elapsed Time:</span>
+                <span [class.urgent-text]="isUrgent(selectedKOT)">
+                  {{ getElapsedMinutes(selectedKOT.createdAt) }} minutes
+                </span>
+              </div>
+              <div *ngIf="selectedKOT.printCount > 0" class="detail-item">
+                <span class="detail-label">Print Count:</span>
+                <span>{{ selectedKOT.printCount }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Items -->
+          <div class="details-section">
+            <h3>Items ({{ selectedKOT.itemCount }})</h3>
+            <div class="kot-items-list">
+              <div *ngFor="let item of selectedKOT.items" class="kot-item">
+                <div class="item-details">
+                  <div class="item-name-row">
+                    <span class="item-quantity">{{ item.quantity }}x</span>
+                    <strong>{{ item.name }}</strong>
+                    <span
+                      class="item-status-badge"
+                      [class]="'item-status-' + item.status">
+                      {{ item.status | titlecase }}
+                    </span>
+                  </div>
+                  <div *ngIf="item.variantName" class="item-sub-detail">
+                    Variant: {{ item.variantName }}
+                  </div>
+                  <div *ngIf="item.modifiers && item.modifiers.length > 0" class="item-sub-detail">
+                    Add-ons: {{ item.modifiers.map(m => m.name).join(', ') }}
+                  </div>
+                  <div *ngIf="item.specialInstructions" class="item-sub-detail special">
+                    ⚠️ {{ item.specialInstructions }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Status History -->
+          <div *ngIf="selectedKOT.statusHistory && selectedKOT.statusHistory.length > 0" class="details-section">
+            <h3>Status History</h3>
+            <div class="history-list">
+              <div *ngFor="let history of selectedKOT.statusHistory" class="history-item">
+                <div class="history-status">
+                  <span
+                    class="status-dot"
+                    [style.background-color]="getKOTStatusColor(history.status)">
+                  </span>
+                  <strong>{{ history.status | titlecase }}</strong>
+                </div>
+                <div class="history-info">
+                  <span>{{ history.userName }}</span>
+                  <span class="history-time">{{ formatDate(history.timestamp) }} {{ formatTime(history.timestamp) }}</span>
+                </div>
+                <div *ngIf="history.notes" class="history-notes">
+                  {{ history.notes }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeKOTDetailsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print Preview Modal -->
+  <div *ngIf="showPrintPreview && printData" class="modal-overlay" (click)="closePrintPreview()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Print Preview - {{ printData.kotNumber }}</h2>
+        <button class="btn-close" (click)="closePrintPreview()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="print-preview">
+          <div class="print-header">
+            <h3>{{ printData.restaurantName }}</h3>
+            <div class="print-info">
+              <strong>KOT: {{ printData.kotNumber }}</strong>
+              <span>{{ formatDate(printData.timestamp) }} {{ formatTime(printData.timestamp) }}</span>
+            </div>
+          </div>
+
+          <div class="print-order-info">
+            <div class="print-row">
+              <span>Order:</span>
+              <strong>{{ printData.orderNumber }}</strong>
+            </div>
+            <div *ngIf="printData.tableNumber" class="print-row">
+              <span>Table:</span>
+              <strong>{{ printData.tableNumber }}</strong>
+            </div>
+            <div class="print-row">
+              <span>Station:</span>
+              <strong>{{ getStationLabel(printData.station) }}</strong>
+            </div>
+          </div>
+
+          <div class="print-items">
+            <div class="print-items-header">ITEMS</div>
+            <div *ngFor="let item of printData.items" class="print-item">
+              <div class="print-item-main">
+                <span class="print-qty">{{ item.quantity }}x</span>
+                <strong>{{ item.name }}</strong>
+              </div>
+              <div *ngIf="item.variant" class="print-item-detail">
+                → {{ item.variant }}
+              </div>
+              <div *ngIf="item.modifiers && item.modifiers.length > 0" class="print-item-detail">
+                → Add: {{ item.modifiers.join(', ') }}
+              </div>
+              <div *ngIf="item.specialInstructions" class="print-item-special">
+                ⚠️ {{ item.specialInstructions }}
+              </div>
+            </div>
+          </div>
+
+          <div class="print-footer">
+            <div class="print-row">
+              <span>Total Items:</span>
+              <strong>{{ printData.itemCount }}</strong>
+            </div>
+            <div *ngIf="printData.priority" class="print-priority">
+              PRIORITY: {{ printData.priority | uppercase }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closePrintPreview()">Close</button>
+      </div>
+    </div>
+  </div>
+
+</div>

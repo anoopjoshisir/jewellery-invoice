@@ -1,0 +1,662 @@
+<div class="order-management">
+  <!-- Header -->
+  <div class="order-header">
+    <div class="header-content">
+      <h1>{{ viewMode === 'create' ? '🛒 New Order' : '📋 Order History' }}</h1>
+      <p class="subtitle">{{ viewMode === 'create' ? 'Create and manage customer orders' : 'View and manage existing orders' }}</p>
+    </div>
+    <div class="header-actions">
+      <button
+        class="btn"
+        [class.btn-primary]="viewMode === 'create'"
+        [class.btn-outline]="viewMode !== 'create'"
+        (click)="switchToCreateOrder()">
+        + New Order
+      </button>
+      <button
+        class="btn"
+        [class.btn-primary]="viewMode === 'list'"
+        [class.btn-outline]="viewMode !== 'list'"
+        (click)="switchToOrderList()">
+        📋 Order History
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading data...</p>
+  </div>
+
+  <!-- Create Order View -->
+  <div *ngIf="!isLoading && viewMode === 'create'" class="create-order-view">
+    <div class="order-content">
+
+      <!-- Left: Order Details & Menu -->
+      <div class="order-left">
+
+        <!-- Order Type & Details -->
+        <div class="order-config">
+          <div class="config-section">
+            <label>Order Type *</label>
+            <div class="order-type-selector">
+              <button
+                *ngFor="let type of orderTypes"
+                class="type-btn"
+                [class.active]="orderType === type"
+                (click)="orderType = type; onOrderTypeChange()">
+                <span class="type-icon">{{ getOrderTypeIcon(type) }}</span>
+                <span>{{ type | titlecase }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Table Selection (Dine-in) -->
+          <div *ngIf="orderType === OrderType.DINE_IN" class="config-section">
+            <label>Select Table *</label>
+            <select [(ngModel)]="selectedTable" class="form-control">
+              <option [ngValue]="null">Choose a table...</option>
+              <option *ngFor="let table of availableTables" [ngValue]="table">
+                Table {{ table.tableNumber }} - {{ table.capacity }} seats
+              </option>
+            </select>
+          </div>
+
+          <!-- Customer Info (Takeaway/Delivery) -->
+          <div *ngIf="orderType === OrderType.TAKEAWAY || orderType === OrderType.DELIVERY" class="config-section">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Customer Name {{ orderType === OrderType.DELIVERY ? '*' : '' }}</label>
+                <input
+                  type="text"
+                  [(ngModel)]="customerName"
+                  class="form-control"
+                  placeholder="Enter customer name" />
+              </div>
+              <div class="form-group">
+                <label>Phone Number</label>
+                <input
+                  type="tel"
+                  [(ngModel)]="customerPhone"
+                  class="form-control"
+                  placeholder="Enter phone number" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Delivery Address -->
+          <div *ngIf="orderType === OrderType.DELIVERY" class="config-section">
+            <label>Delivery Address *</label>
+            <textarea
+              [(ngModel)]="deliveryAddress"
+              rows="2"
+              class="form-control"
+              placeholder="Enter delivery address"></textarea>
+          </div>
+        </div>
+
+        <!-- Menu Browser -->
+        <div class="menu-browser">
+          <div class="menu-header">
+            <h2>Menu</h2>
+            <div class="menu-search">
+              <input
+                type="text"
+                [(ngModel)]="searchTerm"
+                (input)="onMenuSearchChange()"
+                placeholder="Search menu items..."
+                class="search-input" />
+              <span class="search-icon">🔍</span>
+            </div>
+          </div>
+
+          <!-- Category Filter -->
+          <div class="category-filter">
+            <button
+              class="category-chip"
+              [class.active]="!selectedCategory"
+              (click)="selectCategory(null)">
+              All Items
+            </button>
+            <button
+              *ngFor="let category of categories"
+              class="category-chip"
+              [class.active]="selectedCategory?.id === category.id"
+              (click)="selectCategory(category)">
+              {{ category.icon || '📁' }} {{ category.name }}
+            </button>
+          </div>
+
+          <!-- Menu Items Grid -->
+          <div class="menu-items-grid">
+            <div
+              *ngFor="let item of filteredItems"
+              class="menu-item-card"
+              (click)="openCustomizationModal(item)">
+              <div class="item-image" [style.background-image]="item.imageUrl ? 'url(' + item.imageUrl + ')' : 'none'">
+                <span class="food-type-badge" [class]="'food-type-' + item.foodType">
+                  {{ getFoodTypeIcon(item.foodType) }}
+                </span>
+              </div>
+              <div class="item-info">
+                <h3>{{ item.name }}</h3>
+                <p *ngIf="item.description">{{ item.description }}</p>
+                <div class="item-footer">
+                  <span class="item-price">{{ formatCurrency(item.basePrice) }}</span>
+                  <span class="item-time">⏱️ {{ item.preparationTime }}m</span>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="filteredItems.length === 0" class="empty-state">
+              <p>{{ searchTerm ? 'No items found' : 'No items in this category' }}</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right: Cart -->
+      <div class="order-right">
+        <div class="cart-panel">
+          <div class="cart-header">
+            <h2>Cart ({{ cartItemCount }})</h2>
+            <button *ngIf="cart.length > 0" class="btn-link" (click)="clearCart()">
+              Clear
+            </button>
+          </div>
+
+          <div class="cart-items">
+            <div *ngFor="let item of cart; let i = index" class="cart-item">
+              <div class="cart-item-content">
+                <div class="cart-item-header">
+                  <h4>{{ item.menuItem.name }}</h4>
+                  <button class="btn-icon" (click)="removeFromCart(i)">🗑️</button>
+                </div>
+
+                <div *ngIf="item.selectedVariant" class="cart-item-detail">
+                  <small>Variant: {{ item.selectedVariant.name }}</small>
+                </div>
+
+                <div *ngIf="item.selectedModifiers.length > 0" class="cart-item-detail">
+                  <small>Add-ons: {{ item.selectedModifiers.map(m => m.name).join(', ') }}</small>
+                </div>
+
+                <div *ngIf="item.specialInstructions" class="cart-item-detail">
+                  <small>Note: {{ item.specialInstructions }}</small>
+                </div>
+
+                <div class="cart-item-footer">
+                  <div class="quantity-controls">
+                    <button class="qty-btn" (click)="updateCartItemQuantity(i, -1)">-</button>
+                    <span class="qty-value">{{ item.quantity }}</span>
+                    <button class="qty-btn" (click)="updateCartItemQuantity(i, 1)">+</button>
+                  </div>
+                  <span class="cart-item-price">{{ formatCurrency(item.totalPrice) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="cart.length === 0" class="empty-cart">
+              <p>🛒 Cart is empty</p>
+              <small>Start adding items from the menu</small>
+            </div>
+          </div>
+
+          <div *ngIf="cart.length > 0" class="cart-summary">
+            <div class="summary-row">
+              <span>Subtotal:</span>
+              <span>{{ formatCurrency(cartTotal) }}</span>
+            </div>
+            <div class="summary-row">
+              <span>Tax (5%):</span>
+              <span>{{ formatCurrency(cartTotal * 0.05) }}</span>
+            </div>
+            <div *ngIf="discountAmount > 0" class="summary-row discount">
+              <span>Discount:</span>
+              <span>-{{ formatCurrency(discountAmount) }}</span>
+            </div>
+            <div class="summary-row total">
+              <span>Total:</span>
+              <span>{{ formatCurrency(cartTotal + (cartTotal * 0.05) - discountAmount) }}</span>
+            </div>
+
+            <div class="cart-actions">
+              <button class="btn btn-outline btn-block" (click)="applyDiscount()">
+                💳 Apply Discount
+              </button>
+              <button class="btn btn-primary btn-block" (click)="openPaymentModal()">
+                ✓ Proceed to Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Order List View -->
+  <div *ngIf="!isLoading && viewMode === 'list'" class="order-list-view">
+
+    <!-- Filters -->
+    <div class="list-filters">
+      <div class="search-box">
+        <input
+          type="text"
+          [(ngModel)]="orderSearchTerm"
+          (input)="onOrderFilterChange()"
+          placeholder="Search orders..."
+          class="search-input" />
+        <span class="search-icon">🔍</span>
+      </div>
+
+      <select [(ngModel)]="filterStatus" (change)="onOrderFilterChange()" class="filter-select">
+        <option value="all">All Status</option>
+        <option *ngFor="let status of orderStatuses" [value]="status">
+          {{ status | titlecase }}
+        </option>
+      </select>
+
+      <select [(ngModel)]="filterType" (change)="onOrderFilterChange()" class="filter-select">
+        <option value="all">All Types</option>
+        <option *ngFor="let type of orderTypes" [value]="type">
+          {{ getOrderTypeIcon(type) }} {{ type | titlecase }}
+        </option>
+      </select>
+    </div>
+
+    <!-- Orders Grid -->
+    <div class="orders-grid">
+      <div
+        *ngFor="let order of filteredOrders"
+        class="order-card"
+        (click)="viewOrderDetails(order)">
+        <div class="order-card-header">
+          <div class="order-number">
+            <span class="order-type-icon">{{ getOrderTypeIcon(order.type) }}</span>
+            <strong>{{ order.orderNumber }}</strong>
+          </div>
+          <span
+            class="status-badge"
+            [style.background-color]="getOrderStatusColor(order.status)">
+            {{ order.status | titlecase }}
+          </span>
+        </div>
+
+        <div class="order-card-body">
+          <div class="order-detail" *ngIf="order.tableNumber">
+            <span class="detail-label">Table:</span>
+            <span>{{ order.tableNumber }}</span>
+          </div>
+          <div class="order-detail" *ngIf="order.customerName">
+            <span class="detail-label">Customer:</span>
+            <span>{{ order.customerName }}</span>
+          </div>
+          <div class="order-detail">
+            <span class="detail-label">Items:</span>
+            <span>{{ order.itemCount }}</span>
+          </div>
+          <div class="order-detail">
+            <span class="detail-label">Time:</span>
+            <span>{{ formatTime(order.createdAt) }}</span>
+          </div>
+        </div>
+
+        <div class="order-card-footer">
+          <span class="order-total">{{ formatCurrency(order.totalAmount) }}</span>
+          <span class="payment-status" [class]="'payment-' + order.paymentStatus">
+            {{ order.paymentStatus | titlecase }}
+          </span>
+        </div>
+      </div>
+
+      <div *ngIf="filteredOrders.length === 0" class="empty-state">
+        <p>No orders found</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customization Modal -->
+  <div *ngIf="showCustomizationModal && customizingItem" class="modal-overlay" (click)="closeCustomizationModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ customizingItem.name }}</h2>
+        <button class="btn-close" (click)="closeCustomizationModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="customization-form">
+
+          <!-- Item Info -->
+          <div class="item-preview">
+            <div *ngIf="customizingItem.imageUrl" class="preview-image" [style.background-image]="'url(' + customizingItem.imageUrl + ')'"></div>
+            <div class="preview-info">
+              <p *ngIf="customizingItem.description">{{ customizingItem.description }}</p>
+              <div class="preview-meta">
+                <span>{{ getFoodTypeIcon(customizingItem.foodType) }} {{ customizingItem.foodType }}</span>
+                <span>⏱️ {{ customizingItem.preparationTime }} min</span>
+                <span class="preview-price">{{ formatCurrency(customizingItem.basePrice) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Variants -->
+          <div *ngIf="customizingItem.variants && customizingItem.variants.length > 0" class="form-section">
+            <h3>Choose Size</h3>
+            <div class="variant-options">
+              <button
+                *ngFor="let variant of customizingItem.variants"
+                class="variant-btn"
+                [class.active]="customizationForm.selectedVariant?.id === variant.id"
+                [disabled]="!variant.isAvailable"
+                (click)="customizationForm.selectedVariant = variant">
+                <span class="variant-name">{{ variant.name }}</span>
+                <span class="variant-price">
+                  {{ variant.priceAdjustment >= 0 ? '+' : '' }}{{ formatCurrency(variant.priceAdjustment) }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Modifiers -->
+          <div *ngIf="customizingItem.modifiers && customizingItem.modifiers.length > 0" class="form-section">
+            <h3>Add Extras</h3>
+            <div class="modifier-options">
+              <label
+                *ngFor="let modifier of customizingItem.modifiers"
+                class="modifier-checkbox"
+                [class.disabled]="!modifier.isAvailable">
+                <input
+                  type="checkbox"
+                  [checked]="isModifierSelected(modifier)"
+                  [disabled]="!modifier.isAvailable"
+                  (change)="toggleModifier(modifier)" />
+                <span class="modifier-info">
+                  <span class="modifier-name">{{ modifier.name }}</span>
+                  <span class="modifier-price">+{{ formatCurrency(modifier.price) }}</span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Special Instructions -->
+          <div class="form-section">
+            <h3>Special Instructions</h3>
+            <textarea
+              [(ngModel)]="customizationForm.specialInstructions"
+              rows="3"
+              class="form-control"
+              placeholder="Any special requests? (e.g., no onions, extra spicy)"></textarea>
+          </div>
+
+          <!-- Quantity -->
+          <div class="form-section">
+            <h3>Quantity</h3>
+            <div class="quantity-selector">
+              <button class="qty-btn-large" (click)="customizationForm.quantity = Math.max(1, customizationForm.quantity - 1)">
+                -
+              </button>
+              <span class="qty-display">{{ customizationForm.quantity }}</span>
+              <button class="qty-btn-large" (click)="customizationForm.quantity = customizationForm.quantity + 1">
+                +
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeCustomizationModal()">Cancel</button>
+        <button class="btn btn-primary" (click)="addToCart()">
+          Add to Cart - {{ formatCurrency((customizingItem.basePrice + (customizationForm.selectedVariant?.priceAdjustment || 0) + customizationForm.selectedModifiers.reduce((sum, m) => sum + m.price, 0)) * customizationForm.quantity) }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div *ngIf="showPaymentModal" class="modal-overlay" (click)="closePaymentModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Payment</h2>
+        <button class="btn-close" (click)="closePaymentModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="payment-summary">
+          <div class="summary-row">
+            <span>Subtotal:</span>
+            <span>{{ formatCurrency(cartTotal) }}</span>
+          </div>
+          <div class="summary-row">
+            <span>Tax (5%):</span>
+            <span>{{ formatCurrency(cartTotal * 0.05) }}</span>
+          </div>
+          <div *ngIf="discountAmount > 0" class="summary-row discount">
+            <span>Discount:</span>
+            <span>-{{ formatCurrency(discountAmount) }}</span>
+          </div>
+          <div class="summary-row total">
+            <span>Total Amount:</span>
+            <span>{{ formatCurrency(cartTotal + (cartTotal * 0.05) - discountAmount) }}</span>
+          </div>
+        </div>
+
+        <form (submit)="$event.preventDefault(); createOrder()">
+          <div class="form-group">
+            <label>Payment Method *</label>
+            <select [(ngModel)]="paymentForm.method" name="method" required class="form-control">
+              <option *ngFor="let method of paymentMethods" [value]="method">
+                {{ getPaymentMethodLabel(method) }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Amount Paid (₹) *</label>
+            <input
+              type="number"
+              [(ngModel)]="paymentForm.amount"
+              name="amount"
+              required
+              min="0"
+              step="0.01"
+              class="form-control" />
+          </div>
+
+          <div *ngIf="paymentForm.method !== PaymentMethod.CASH" class="form-group">
+            <label>Transaction ID</label>
+            <input
+              type="text"
+              [(ngModel)]="paymentForm.transactionId"
+              name="transactionId"
+              class="form-control"
+              placeholder="Enter transaction/reference ID" />
+          </div>
+
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea
+              [(ngModel)]="paymentForm.notes"
+              name="notes"
+              rows="2"
+              class="form-control"
+              placeholder="Additional payment notes"></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" (click)="closePaymentModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              Complete Order
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Details Modal -->
+  <div *ngIf="showOrderDetailsModal && selectedOrder" class="modal-overlay" (click)="closeOrderDetailsModal()">
+    <div class="modal modal-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>{{ selectedOrder.orderNumber }}</h2>
+          <p class="subtitle">{{ selectedOrder.type | titlecase }} • {{ formatDate(selectedOrder.createdAt) }} {{ formatTime(selectedOrder.createdAt) }}</p>
+        </div>
+        <button class="btn-close" (click)="closeOrderDetailsModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="order-details">
+
+          <!-- Status & Actions -->
+          <div class="details-section">
+            <div class="status-row">
+              <span
+                class="status-badge-large"
+                [style.background-color]="getOrderStatusColor(selectedOrder.status)">
+                {{ selectedOrder.status | titlecase }}
+              </span>
+              <div class="order-actions">
+                <button
+                  *ngIf="selectedOrder.status === OrderStatus.PENDING"
+                  class="btn btn-sm btn-primary"
+                  (click)="updateOrderStatus(selectedOrder, OrderStatus.CONFIRMED)">
+                  Confirm Order
+                </button>
+                <button
+                  *ngIf="selectedOrder.status === OrderStatus.CONFIRMED"
+                  class="btn btn-sm btn-primary"
+                  (click)="updateOrderStatus(selectedOrder, OrderStatus.PREPARING)">
+                  Start Preparing
+                </button>
+                <button
+                  *ngIf="selectedOrder.status === OrderStatus.PREPARING"
+                  class="btn btn-sm btn-primary"
+                  (click)="updateOrderStatus(selectedOrder, OrderStatus.READY)">
+                  Mark Ready
+                </button>
+                <button
+                  *ngIf="selectedOrder.status !== OrderStatus.CANCELLED && selectedOrder.status !== OrderStatus.COMPLETED"
+                  class="btn btn-sm btn-danger"
+                  (click)="cancelOrder(selectedOrder)">
+                  Cancel Order
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Info -->
+          <div class="details-section">
+            <h3>Order Information</h3>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="detail-label">Order Type:</span>
+                <span>{{ getOrderTypeIcon(selectedOrder.type) }} {{ selectedOrder.type | titlecase }}</span>
+              </div>
+              <div *ngIf="selectedOrder.tableNumber" class="detail-item">
+                <span class="detail-label">Table:</span>
+                <span>{{ selectedOrder.tableNumber }}</span>
+              </div>
+              <div *ngIf="selectedOrder.customerName" class="detail-item">
+                <span class="detail-label">Customer:</span>
+                <span>{{ selectedOrder.customerName }}</span>
+              </div>
+              <div *ngIf="selectedOrder.customerPhone" class="detail-item">
+                <span class="detail-label">Phone:</span>
+                <span>{{ selectedOrder.customerPhone }}</span>
+              </div>
+              <div *ngIf="selectedOrder.deliveryAddress" class="detail-item">
+                <span class="detail-label">Delivery Address:</span>
+                <span>{{ selectedOrder.deliveryAddress }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Items -->
+          <div class="details-section">
+            <h3>Order Items ({{ selectedOrder.itemCount }})</h3>
+            <div class="order-items-list">
+              <div *ngFor="let item of selectedOrder.items" class="order-item">
+                <div class="item-details">
+                  <div class="item-name-row">
+                    <span class="item-quantity">{{ item.quantity }}x</span>
+                    <strong>{{ item.name }}</strong>
+                  </div>
+                  <div *ngIf="item.variantName" class="item-sub-detail">
+                    Size: {{ item.variantName }}
+                  </div>
+                  <div *ngIf="item.modifiers && item.modifiers.length > 0" class="item-sub-detail">
+                    Add-ons: {{ item.modifiers.map(m => m.name).join(', ') }}
+                  </div>
+                  <div *ngIf="item.specialInstructions" class="item-sub-detail">
+                    Note: {{ item.specialInstructions }}
+                  </div>
+                </div>
+                <span class="item-price">{{ formatCurrency(item.totalPrice) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Details -->
+          <div class="details-section">
+            <h3>Payment Details</h3>
+            <div class="payment-breakdown">
+              <div class="breakdown-row">
+                <span>Subtotal:</span>
+                <span>{{ formatCurrency(selectedOrder.subtotal) }}</span>
+              </div>
+              <div class="breakdown-row">
+                <span>Tax ({{ selectedOrder.taxPercentage }}%):</span>
+                <span>{{ formatCurrency(selectedOrder.taxAmount) }}</span>
+              </div>
+              <div *ngIf="selectedOrder.discountAmount > 0" class="breakdown-row discount">
+                <span>Discount {{ selectedOrder.discountCode ? '(' + selectedOrder.discountCode + ')' : '' }}:</span>
+                <span>-{{ formatCurrency(selectedOrder.discountAmount) }}</span>
+              </div>
+              <div class="breakdown-row total">
+                <span>Total Amount:</span>
+                <span>{{ formatCurrency(selectedOrder.totalAmount) }}</span>
+              </div>
+              <div class="breakdown-row">
+                <span>Paid Amount:</span>
+                <span>{{ formatCurrency(selectedOrder.paidAmount) }}</span>
+              </div>
+              <div class="breakdown-row">
+                <span>Payment Status:</span>
+                <span class="payment-status" [class]="'payment-' + selectedOrder.paymentStatus">
+                  {{ selectedOrder.paymentStatus | titlecase }}
+                </span>
+              </div>
+            </div>
+
+            <div *ngIf="selectedOrder.payments && selectedOrder.payments.length > 0" class="payments-list">
+              <h4>Payment Transactions</h4>
+              <div *ngFor="let payment of selectedOrder.payments" class="payment-item">
+                <div class="payment-info">
+                  <strong>{{ getPaymentMethodLabel(payment.method) }}</strong>
+                  <span>{{ formatCurrency(payment.amount) }}</span>
+                </div>
+                <div *ngIf="payment.transactionId" class="payment-detail">
+                  Transaction ID: {{ payment.transactionId }}
+                </div>
+                <div class="payment-detail">
+                  {{ formatDate(payment.timestamp) }} {{ formatTime(payment.timestamp) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeOrderDetailsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+</div>

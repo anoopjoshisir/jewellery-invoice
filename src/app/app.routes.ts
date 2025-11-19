@@ -16,6 +16,17 @@ import { EstimateComponent } from './components/estimate/estimate.component';
 import { EstimateListComponent } from './components/estimate-list/estimate-list.component';
 import { TenantOnboardingComponent } from './components/tenant-onboarding/tenant-onboarding.component';
 import { SuperAdminComponent } from './components/super-admin/super-admin.component';
+import { SuperAdminDashboardComponent } from './components/super-admin-dashboard/super-admin-dashboard.component';
+import { TenantConfigEditorComponent } from './components/tenant-config-editor/tenant-config-editor.component';
+import { TemplateManagerComponent } from './components/template-manager/template-manager.component';
+import { AuditLogViewerComponent } from './components/audit-log-viewer/audit-log-viewer.component';
+import { UsageMonitoringComponent } from './components/usage-monitoring/usage-monitoring.component';
+import { RestaurantDashboardComponent } from './components/restaurant-dashboard/restaurant-dashboard.component';
+import { TableManagementComponent } from './components/table-management/table-management.component';
+import { MenuManagementComponent } from './components/menu-management/menu-management.component';
+import { OrderManagementComponent } from './components/order-management/order-management.component';
+import { KOTManagementComponent } from './components/kot-management/kot-management.component';
+import { KitchenDisplaySystemComponent } from './components/kitchen-display-system/kitchen-display-system.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -81,8 +92,75 @@ export const routes: Routes = [
   },
   {
     path: 'super-admin',
-    component: SuperAdminComponent,
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard],
+    children: [
+      {
+        path: '',
+        redirectTo: 'dashboard',
+        pathMatch: 'full'
+      },
+      {
+        path: 'dashboard',
+        component: SuperAdminDashboardComponent
+      },
+      {
+        path: 'tenant-config/:id',
+        component: TenantConfigEditorComponent
+      },
+      {
+        path: 'templates',
+        component: TemplateManagerComponent
+      },
+      {
+        path: 'audit-logs',
+        component: AuditLogViewerComponent
+      },
+      {
+        path: 'usage-monitoring',
+        component: UsageMonitoringComponent
+      },
+      // Legacy route for backwards compatibility
+      {
+        path: 'old',
+        component: SuperAdminComponent
+      }
+    ]
+  },
+  // Restaurant Module Routes
+  {
+    path: 'restaurant',
+    canActivate: [AuthGuard],
+    children: [
+      {
+        path: '',
+        redirectTo: 'dashboard',
+        pathMatch: 'full'
+      },
+      {
+        path: 'dashboard',
+        component: RestaurantDashboardComponent
+      },
+      {
+        path: 'tables',
+        component: TableManagementComponent
+      },
+      {
+        path: 'menu',
+        component: MenuManagementComponent
+      },
+      {
+        path: 'orders',
+        component: OrderManagementComponent
+      },
+      {
+        path: 'kot',
+        component: KOTManagementComponent
+      },
+      {
+        path: 'kitchen-display',
+        component: KitchenDisplaySystemComponent
+      }
+    ]
   },
   // Add more feature routes here as needed, using lazy loading for large modules:
   // {

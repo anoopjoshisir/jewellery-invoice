@@ -1,0 +1,484 @@
+<div class="table-management">
+  <!-- Header -->
+  <div class="management-header">
+    <div class="header-content">
+      <button class="btn-back" routerLink="/restaurant/dashboard">
+        ← Back to Dashboard
+      </button>
+      <div class="header-info">
+        <h1>🪑 Table Management</h1>
+        <p class="subtitle">Manage tables, floors, and reservations</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="openNewReservationModal()">
+        + New Reservation
+      </button>
+      <button class="btn btn-primary" (click)="openNewTableModal()">
+        + Add Table
+      </button>
+      <button class="btn btn-outline" (click)="refresh()" [disabled]="isLoading">
+        {{ isLoading ? '🔄 Refreshing...' : '🔄 Refresh' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading table data...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading" class="management-content">
+
+    <!-- Floor Selector -->
+    <div class="floor-selector" *ngIf="floors.length > 0">
+      <button
+        *ngFor="let floor of floors"
+        class="floor-btn"
+        [class.active]="selectedFloor?.id === floor.id"
+        (click)="selectFloor(floor)">
+        {{ floor.displayName }}
+        <span class="floor-capacity">{{ floor.totalCapacity }} seats</span>
+      </button>
+    </div>
+
+    <!-- View Switcher -->
+    <div class="view-switcher">
+      <button
+        class="view-btn"
+        [class.active]="currentView === 'floor-plan'"
+        (click)="switchView('floor-plan')">
+        🗺️ Floor Plan
+      </button>
+      <button
+        class="view-btn"
+        [class.active]="currentView === 'list'"
+        (click)="switchView('list')">
+        📋 Table List
+      </button>
+      <button
+        class="view-btn"
+        [class.active]="currentView === 'reservations'"
+        (click)="switchView('reservations')">
+        📅 Reservations ({{ reservations.length }})
+      </button>
+    </div>
+
+    <!-- Floor Summary -->
+    <div class="floor-summary" *ngIf="floorSummary">
+      <div class="summary-card">
+        <div class="summary-stat">
+          <span class="stat-label">Total Tables:</span>
+          <span class="stat-value">{{ floorSummary.summary.total }}</span>
+        </div>
+        <div class="summary-stat">
+          <span class="stat-label">Available:</span>
+          <span class="stat-value" style="color: #10b981;">{{ floorSummary.summary.available }}</span>
+        </div>
+        <div class="summary-stat">
+          <span class="stat-label">Occupied:</span>
+          <span class="stat-value" style="color: #ef4444;">{{ floorSummary.summary.occupied }}</span>
+        </div>
+        <div class="summary-stat">
+          <span class="stat-label">Reserved:</span>
+          <span class="stat-value" style="color: #f59e0b;">{{ floorSummary.summary.reserved }}</span>
+        </div>
+        <div class="summary-stat">
+          <span class="stat-label">Occupancy:</span>
+          <span class="stat-value">{{ floorSummary.summary.occupancyRate }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floor Plan View -->
+    <div class="floor-plan-view" *ngIf="currentView === 'floor-plan'">
+      <div class="filters-bar">
+        <select [(ngModel)]="filterStatus" class="filter-select">
+          <option value="all">All Tables</option>
+          <option [value]="TableStatus.AVAILABLE">Available</option>
+          <option [value]="TableStatus.OCCUPIED">Occupied</option>
+          <option [value]="TableStatus.RESERVED">Reserved</option>
+          <option [value]="TableStatus.BILLED">Billed</option>
+          <option [value]="TableStatus.CLEANING">Cleaning</option>
+        </select>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search tables..."
+          class="search-input">
+      </div>
+
+      <div class="floor-plan">
+        <div
+          *ngFor="let table of filteredTables"
+          class="table-card"
+          [class.available]="table.status === TableStatus.AVAILABLE"
+          [class.occupied]="table.status === TableStatus.OCCUPIED"
+          [class.reserved]="table.status === TableStatus.RESERVED"
+          [class.billed]="table.status === TableStatus.BILLED"
+          [class.cleaning]="table.status === TableStatus.CLEANING"
+          (click)="viewTableDetails(table)">
+          <div class="table-header">
+            <strong>{{ table.tableNumber }}</strong>
+            <span
+              class="status-indicator"
+              [style.background-color]="getTableStatusColor(table.status)">
+            </span>
+          </div>
+          <div class="table-info">
+            <div class="table-capacity">👥 {{ table.capacity }}</div>
+            <div class="table-shape">{{ table.shape }}</div>
+          </div>
+          <div class="table-status-label">
+            {{ getTableStatusLabel(table.status) }}
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="filteredTables.length === 0">
+        <p>No tables found</p>
+      </div>
+    </div>
+
+    <!-- List View -->
+    <div class="list-view" *ngIf="currentView === 'list'">
+      <div class="filters-bar">
+        <select [(ngModel)]="filterStatus" class="filter-select">
+          <option value="all">All Tables</option>
+          <option [value]="TableStatus.AVAILABLE">Available</option>
+          <option [value]="TableStatus.OCCUPIED">Occupied</option>
+          <option [value]="TableStatus.RESERVED">Reserved</option>
+          <option [value]="TableStatus.BILLED">Billed</option>
+          <option [value]="TableStatus.CLEANING">Cleaning</option>
+        </select>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search tables..."
+          class="search-input">
+      </div>
+
+      <div class="table-list">
+        <div *ngFor="let table of filteredTables" class="list-card">
+          <div class="list-card-header">
+            <div class="table-number">
+              <strong>{{ table.tableNumber }}</strong>
+              <span class="table-name">{{ table.displayName }}</span>
+            </div>
+            <span
+              class="status-badge"
+              [style.background-color]="getTableStatusColor(table.status)">
+              {{ getTableStatusLabel(table.status) }}
+            </span>
+          </div>
+          <div class="list-card-body">
+            <div class="detail-row">
+              <span class="label">Capacity:</span>
+              <span class="value">{{ table.capacity }} guests</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Shape:</span>
+              <span class="value">{{ table.shape | titlecase }}</span>
+            </div>
+            <div class="detail-row" *ngIf="table.features.length > 0">
+              <span class="label">Features:</span>
+              <span class="value">{{ table.features.join(', ') }}</span>
+            </div>
+          </div>
+          <div class="list-card-actions">
+            <button class="btn-sm btn-outline" (click)="viewTableDetails(table)">View Details</button>
+            <button class="btn-sm btn-outline" (click)="openEditTableModal(table)">Edit</button>
+            <button class="btn-sm btn-outline" (click)="deleteTable(table)">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="filteredTables.length === 0">
+        <p>No tables found</p>
+      </div>
+    </div>
+
+    <!-- Reservations View -->
+    <div class="reservations-view" *ngIf="currentView === 'reservations'">
+      <div class="reservations-section">
+        <h3>Today's Reservations ({{ todaysReservations.length }})</h3>
+        <div class="reservations-list">
+          <div *ngFor="let reservation of todaysReservations" class="reservation-card">
+            <div class="reservation-header">
+              <div class="reservation-info">
+                <strong>{{ reservation.customerName }}</strong>
+                <span class="reservation-time">{{ reservation.reservationTime }}</span>
+              </div>
+              <span
+                class="status-badge"
+                [style.background-color]="getReservationStatusColor(reservation.status)">
+                {{ reservation.status | titlecase }}
+              </span>
+            </div>
+            <div class="reservation-details">
+              <div class="detail-row">
+                <span class="label">Table:</span>
+                <span class="value">{{ reservation.tableNumber }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Guests:</span>
+                <span class="value">{{ reservation.guestCount }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Phone:</span>
+                <span class="value">{{ reservation.customerPhone }}</span>
+              </div>
+              <div class="detail-row" *ngIf="reservation.specialRequests">
+                <span class="label">Requests:</span>
+                <span class="value">{{ reservation.specialRequests }}</span>
+              </div>
+            </div>
+            <div class="reservation-actions">
+              <button
+                *ngIf="reservation.status === ReservationStatus.PENDING"
+                class="btn-sm btn-primary"
+                (click)="confirmReservation(reservation)">
+                Confirm
+              </button>
+              <button
+                *ngIf="reservation.status === ReservationStatus.CONFIRMED"
+                class="btn-sm btn-primary"
+                (click)="markArrived(reservation)">
+                Mark Arrived
+              </button>
+              <button
+                *ngIf="reservation.status === ReservationStatus.ARRIVED"
+                class="btn-sm btn-primary"
+                (click)="seatReservation(reservation)">
+                Seat Guests
+              </button>
+              <button
+                *ngIf="[ReservationStatus.PENDING, ReservationStatus.CONFIRMED].includes(reservation.status)"
+                class="btn-sm btn-outline"
+                (click)="cancelReservation(reservation)">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="todaysReservations.length === 0">
+          <p>No reservations for today</p>
+        </div>
+      </div>
+
+      <div class="reservations-section" *ngIf="upcomingReservations.length > 0">
+        <h3>Upcoming Reservations ({{ upcomingReservations.length }})</h3>
+        <div class="reservations-list">
+          <div *ngFor="let reservation of upcomingReservations" class="reservation-card">
+            <div class="reservation-header">
+              <div class="reservation-info">
+                <strong>{{ reservation.customerName }}</strong>
+                <span class="reservation-date">{{ reservation.reservationDate }} {{ reservation.reservationTime }}</span>
+              </div>
+              <span
+                class="status-badge"
+                [style.background-color]="getReservationStatusColor(reservation.status)">
+                {{ reservation.status | titlecase }}
+              </span>
+            </div>
+            <div class="reservation-details">
+              <div class="detail-row">
+                <span class="label">Table:</span>
+                <span class="value">{{ reservation.tableNumber }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Guests:</span>
+                <span class="value">{{ reservation.guestCount }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Phone:</span>
+                <span class="value">{{ reservation.customerPhone }}</span>
+              </div>
+            </div>
+            <div class="reservation-actions">
+              <button
+                *ngIf="reservation.status === ReservationStatus.PENDING"
+                class="btn-sm btn-primary"
+                (click)="confirmReservation(reservation)">
+                Confirm
+              </button>
+              <button
+                class="btn-sm btn-outline"
+                (click)="cancelReservation(reservation)">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Table Modal -->
+  <div class="modal-overlay" *ngIf="showTableModal" (click)="showTableModal = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode ? 'Edit Table' : 'Add New Table' }}</h2>
+        <button class="btn-close" (click)="showTableModal = false">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Table Number *</label>
+          <input type="text" [(ngModel)]="tableForm.tableNumber" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label>Display Name *</label>
+          <input type="text" [(ngModel)]="tableForm.displayName" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label>Capacity *</label>
+          <input type="number" [(ngModel)]="tableForm.capacity" class="form-input" min="1" required>
+        </div>
+        <div class="form-group">
+          <label>Shape</label>
+          <select [(ngModel)]="tableForm.shape" class="form-select">
+            <option value="square">Square</option>
+            <option value="rectangle">Rectangle</option>
+            <option value="circle">Circle</option>
+            <option value="oval">Oval</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="showTableModal = false">Cancel</button>
+        <button class="btn btn-primary" (click)="saveTable()">
+          {{ isEditMode ? 'Update' : 'Create' }} Table
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reservation Modal -->
+  <div class="modal-overlay" *ngIf="showReservationModal" (click)="showReservationModal = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>New Reservation</h2>
+        <button class="btn-close" (click)="showReservationModal = false">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Customer Name *</label>
+          <input type="text" [(ngModel)]="reservationForm.customerName" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label>Phone *</label>
+          <input type="tel" [(ngModel)]="reservationForm.customerPhone" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="reservationForm.customerEmail" class="form-input">
+        </div>
+        <div class="form-group">
+          <label>Table *</label>
+          <select [(ngModel)]="reservationForm.tableId" class="form-select" required>
+            <option value="">Select a table</option>
+            <option *ngFor="let table of allTables" [value]="table.id">
+              {{ table.tableNumber }} - {{ table.displayName }} ({{ table.capacity }} seats)
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Guest Count *</label>
+          <input type="number" [(ngModel)]="reservationForm.guestCount" class="form-input" min="1" required>
+        </div>
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" [(ngModel)]="reservationForm.reservationDate" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label>Time *</label>
+          <input type="time" [(ngModel)]="reservationForm.reservationTime" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label>Special Requests</label>
+          <textarea [(ngModel)]="reservationForm.specialRequests" class="form-textarea" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="showReservationModal = false">Cancel</button>
+        <button class="btn btn-primary" (click)="saveReservation()">Create Reservation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Detail Modal -->
+  <div class="modal-overlay" *ngIf="showTableDetailModal" (click)="closeTableDetailModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ selectedTable?.tableNumber }} - {{ selectedTable?.displayName }}</h2>
+        <button class="btn-close" (click)="closeTableDetailModal()">✕</button>
+      </div>
+      <div class="modal-body" *ngIf="selectedTable">
+        <div class="detail-section">
+          <h3>Table Information</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="label">Status:</span>
+              <span
+                class="value status-badge"
+                [style.background-color]="getTableStatusColor(selectedTable.status)">
+                {{ getTableStatusLabel(selectedTable.status) }}
+              </span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Capacity:</span>
+              <span class="value">{{ selectedTable.capacity }} guests</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Shape:</span>
+              <span class="value">{{ selectedTable.shape | titlecase }}</span>
+            </div>
+            <div class="detail-item" *ngIf="selectedTable.features.length > 0">
+              <span class="label">Features:</span>
+              <span class="value">{{ selectedTable.features.join(', ') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Quick Actions</h3>
+          <div class="action-buttons">
+            <button
+              *ngIf="selectedTable.status === TableStatus.AVAILABLE"
+              class="btn btn-primary"
+              (click)="updateTableStatus(selectedTable, TableStatus.OCCUPIED); closeTableDetailModal()">
+              Mark as Occupied
+            </button>
+            <button
+              *ngIf="selectedTable.status === TableStatus.OCCUPIED"
+              class="btn btn-primary"
+              (click)="updateTableStatus(selectedTable, TableStatus.BILLED); closeTableDetailModal()">
+              Mark as Billed
+            </button>
+            <button
+              *ngIf="selectedTable.status === TableStatus.BILLED || selectedTable.status === TableStatus.OCCUPIED"
+              class="btn btn-outline"
+              (click)="clearTable(selectedTable); closeTableDetailModal()">
+              Clear Table
+            </button>
+            <button
+              *ngIf="selectedTable.status === TableStatus.AVAILABLE"
+              class="btn btn-outline"
+              (click)="openNewReservationModal(selectedTable); closeTableDetailModal()">
+              Create Reservation
+            </button>
+            <button
+              class="btn btn-outline"
+              (click)="openEditTableModal(selectedTable); closeTableDetailModal()">
+              Edit Table
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

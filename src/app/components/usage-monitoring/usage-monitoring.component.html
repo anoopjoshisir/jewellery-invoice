@@ -1,0 +1,353 @@
+<div class="usage-monitoring">
+  <!-- Header -->
+  <div class="monitor-header">
+    <div class="header-content">
+      <button class="btn-back" routerLink="/super-admin/dashboard">
+        ← Back to Dashboard
+      </button>
+      <div class="header-info">
+        <h1>📊 Usage Monitoring</h1>
+        <p class="subtitle">Real-time resource usage across all tenants</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="refresh()" [disabled]="isLoading">
+        {{ isLoading ? '🔄 Refreshing...' : '🔄 Refresh' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading usage data...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading" class="monitor-content">
+    <!-- Overview Statistics -->
+    <div class="overview-section" *ngIf="stats">
+      <h2>📈 Overview</h2>
+
+      <!-- Summary Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.totalTenants }}</div>
+          <div class="stat-label">Total Active Tenants</div>
+        </div>
+        <div class="stat-card card-warning">
+          <div class="stat-value">{{ stats.tenantsNearLimit }}</div>
+          <div class="stat-label">Near Limit (>80%)</div>
+        </div>
+        <div class="stat-card card-critical">
+          <div class="stat-value">{{ stats.tenantsOverLimit }}</div>
+          <div class="stat-label">Over Limit (>100%)</div>
+        </div>
+        <div class="stat-card card-info">
+          <div class="stat-value">{{ stats.averageUsagePercent }}%</div>
+          <div class="stat-label">Average Usage</div>
+        </div>
+      </div>
+
+      <!-- Total Resource Usage -->
+      <div class="resources-section">
+        <h3>Total Resource Usage Across All Tenants</h3>
+        <div class="resources-grid">
+          <div
+            *ngFor="let resource of [
+              stats.totalResources.users,
+              stats.totalResources.products,
+              stats.totalResources.invoices,
+              stats.totalResources.branches,
+              stats.totalResources.storage,
+              stats.totalResources.apiCalls
+            ]"
+            class="resource-card"
+            [ngClass]="getResourceStatusClass(resource.status)">
+            <div class="resource-header">
+              <span class="resource-name">{{ resource.name }}</span>
+              <span class="resource-percent">{{ resource.percent }}%</span>
+            </div>
+            <div class="resource-bar">
+              <div
+                class="resource-fill"
+                [style.width.%]="resource.percent > 100 ? 100 : resource.percent"></div>
+            </div>
+            <div class="resource-stats">
+              <span>{{ formatNumber(resource.total) }} / {{ formatNumber(resource.limit) }}</span>
+              <span class="status-badge" [ngClass]="getResourceStatusClass(resource.status)">
+                {{ resource.status | titlecase }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerts Section -->
+    <div class="alerts-section" *ngIf="alerts.length > 0">
+      <h2>⚠️ Active Alerts ({{ alerts.length }})</h2>
+      <div class="alerts-grid">
+        <div
+          *ngFor="let alert of alerts.slice(0, 10)"
+          class="alert-card"
+          [ngClass]="getAlertClass(alert.type)">
+          <div class="alert-header">
+            <span class="alert-icon">
+              {{ alert.type === 'critical' ? '🔴' : alert.type === 'warning' ? '🟡' : 'ℹ️' }}
+            </span>
+            <span class="alert-tenant">{{ alert.tenantName }}</span>
+            <span class="alert-percent">{{ alert.usagePercent }}%</span>
+          </div>
+          <div class="alert-message">{{ alert.message }}</div>
+        </div>
+      </div>
+      <p *ngIf="alerts.length > 10" class="alerts-more">
+        + {{ alerts.length - 10 }} more alerts
+      </p>
+    </div>
+
+    <!-- Per-Tenant Usage Table -->
+    <div class="usage-table-section">
+      <div class="section-header">
+        <h2>📋 Per-Tenant Resource Usage ({{ filteredRows.length }} tenants)</h2>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>Business Type:</label>
+          <select [(ngModel)]="filterBusinessType" (ngModelChange)="onFilterChange()" class="filter-select">
+            <option value="all">All Types</option>
+            <option value="jewellery">Jewellery</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="medical">Medical/Pharmacy</option>
+            <option value="retail">Retail</option>
+            <option value="manufacturing">Manufacturing</option>
+            <option value="services">Services</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Access Level:</label>
+          <select [(ngModel)]="filterAccessLevel" (ngModelChange)="onFilterChange()" class="filter-select">
+            <option value="all">All Levels</option>
+            <option value="free">Free</option>
+            <option value="small">Small</option>
+            <option value="advanced">Advanced</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Alert Status:</label>
+          <select [(ngModel)]="filterAlertStatus" (ngModelChange)="onFilterChange()" class="filter-select">
+            <option value="all">All Statuses</option>
+            <option value="critical">Critical (>100%)</option>
+            <option value="warning">Warning (>80%)</option>
+            <option value="good">Good (<80%)</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Search:</label>
+          <input
+            type="text"
+            [(ngModel)]="searchTerm"
+            (ngModelChange)="onFilterChange()"
+            placeholder="Search tenant..."
+            class="filter-input">
+        </div>
+      </div>
+
+      <!-- Usage Table -->
+      <div class="table-wrapper">
+        <table class="usage-table">
+          <thead>
+            <tr>
+              <th (click)="sort('tenantName')" class="sortable">
+                Tenant
+                <span class="sort-indicator" *ngIf="sortColumn === 'tenantName'">
+                  {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </th>
+              <th (click)="sort('businessType')" class="sortable">
+                Business Type
+                <span class="sort-indicator" *ngIf="sortColumn === 'businessType'">
+                  {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </th>
+              <th (click)="sort('accessLevel')" class="sortable">
+                Access Level
+                <span class="sort-indicator" *ngIf="sortColumn === 'accessLevel'">
+                  {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </th>
+              <th>Users</th>
+              <th>Products</th>
+              <th>Invoices/Month</th>
+              <th>Branches</th>
+              <th>Storage (MB)</th>
+              <th>API Calls/Month</th>
+              <th (click)="sort('overallPercent')" class="sortable">
+                Overall
+                <span class="sort-indicator" *ngIf="sortColumn === 'overallPercent'">
+                  {{ sortDirection === 'asc' ? '▲' : '▼' }}
+                </span>
+              </th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of filteredRows" [ngClass]="'row-' + row.overallStatus">
+              <td>
+                <div class="tenant-info">
+                  <strong>{{ row.tenantName }}</strong>
+                  <small>{{ row.config.tenantId }}</small>
+                </div>
+              </td>
+              <td>
+                <span class="badge badge-business">{{ row.businessType }}</span>
+              </td>
+              <td>
+                <span class="badge badge-level">{{ row.accessLevel }}</span>
+              </td>
+              <td>
+                <div class="resource-cell">
+                  <div class="mini-bar" [ngClass]="'status-' + row.resources.users.status">
+                    <div class="mini-fill" [style.width.%]="row.resources.users.percent > 100 ? 100 : row.resources.users.percent"></div>
+                  </div>
+                  <span class="resource-text">
+                    {{ row.resources.users.current }} / {{ formatNumber(row.resources.users.limit) }}
+                    <small>({{ row.resources.users.percent }}%)</small>
+                  </span>
+                  <button
+                    *ngIf="row.resources.users.percent >= 80"
+                    class="btn-mini"
+                    (click)="increaseLimits(row, 'users')"
+                    title="Increase limit">
+                    +
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div class="resource-cell">
+                  <div class="mini-bar" [ngClass]="'status-' + row.resources.products.status">
+                    <div class="mini-fill" [style.width.%]="row.resources.products.percent > 100 ? 100 : row.resources.products.percent"></div>
+                  </div>
+                  <span class="resource-text">
+                    {{ row.resources.products.current }} / {{ formatNumber(row.resources.products.limit) }}
+                    <small>({{ row.resources.products.percent }}%)</small>
+                  </span>
+                  <button
+                    *ngIf="row.resources.products.percent >= 80"
+                    class="btn-mini"
+                    (click)="increaseLimits(row, 'products')"
+                    title="Increase limit">
+                    +
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div class="resource-cell">
+                  <div class="mini-bar" [ngClass]="'status-' + row.resources.invoices.status">
+                    <div class="mini-fill" [style.width.%]="row.resources.invoices.percent > 100 ? 100 : row.resources.invoices.percent"></div>
+                  </div>
+                  <span class="resource-text">
+                    {{ row.resources.invoices.current }} / {{ formatNumber(row.resources.invoices.limit) }}
+                    <small>({{ row.resources.invoices.percent }}%)</small>
+                  </span>
+                  <button
+                    *ngIf="row.resources.invoices.percent >= 80"
+                    class="btn-mini"
+                    (click)="increaseLimits(row, 'invoices')"
+                    title="Increase limit">
+                    +
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div class="resource-cell">
+                  <div class="mini-bar" [ngClass]="'status-' + row.resources.branches.status">
+                    <div class="mini-fill" [style.width.%]="row.resources.branches.percent > 100 ? 100 : row.resources.branches.percent"></div>
+                  </div>
+                  <span class="resource-text">
+                    {{ row.resources.branches.current }} / {{ formatNumber(row.resources.branches.limit) }}
+                    <small>({{ row.resources.branches.percent }}%)</small>
+                  </span>
+                  <button
+                    *ngIf="row.resources.branches.percent >= 80"
+                    class="btn-mini"
+                    (click)="increaseLimits(row, 'branches')"
+                    title="Increase limit">
+                    +
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div class="resource-cell">
+                  <div class="mini-bar" [ngClass]="'status-' + row.resources.storage.status">
+                    <div class="mini-fill" [style.width.%]="row.resources.storage.percent > 100 ? 100 : row.resources.storage.percent"></div>
+                  </div>
+                  <span class="resource-text">
+                    {{ row.resources.storage.current }} / {{ formatNumber(row.resources.storage.limit) }}
+                    <small>({{ row.resources.storage.percent }}%)</small>
+                  </span>
+                  <button
+                    *ngIf="row.resources.storage.percent >= 80"
+                    class="btn-mini"
+                    (click)="increaseLimits(row, 'storage')"
+                    title="Increase limit">
+                    +
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div class="resource-cell">
+                  <div class="mini-bar" [ngClass]="'status-' + row.resources.apiCalls.status">
+                    <div class="mini-fill" [style.width.%]="row.resources.apiCalls.percent > 100 ? 100 : row.resources.apiCalls.percent"></div>
+                  </div>
+                  <span class="resource-text">
+                    {{ row.resources.apiCalls.current }} / {{ formatNumber(row.resources.apiCalls.limit) }}
+                    <small>({{ row.resources.apiCalls.percent }}%)</small>
+                  </span>
+                  <button
+                    *ngIf="row.resources.apiCalls.percent >= 80"
+                    class="btn-mini"
+                    (click)="increaseLimits(row, 'apiCalls')"
+                    title="Increase limit">
+                    +
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div class="overall-cell">
+                  <div class="overall-bar" [ngClass]="'status-' + row.overallStatus">
+                    <div class="overall-fill" [style.width.%]="row.overallPercent > 100 ? 100 : row.overallPercent"></div>
+                  </div>
+                  <span class="overall-percent">{{ row.overallPercent }}%</span>
+                  <span class="status-badge" [ngClass]="'status-' + row.overallStatus">
+                    {{ row.overallStatus }}
+                  </span>
+                </div>
+              </td>
+              <td>
+                <button
+                  class="btn-action"
+                  [routerLink]="['/super-admin/tenant-config', row.config.id]"
+                  title="Configure">
+                  ⚙️
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="filteredRows.length === 0" class="empty-state">
+        <p>No tenants found matching the current filters.</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,410 @@
+<div class="super-admin-dashboard">
+  <!-- Header -->
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1>🛡️ Super Admin Dashboard</h1>
+      <p class="subtitle">Complete system overview and tenant management</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="loadDashboard()">
+        <span>🔄</span> Refresh
+      </button>
+      <button class="btn btn-primary" routerLink="/tenant-onboarding">
+        <span>➕</span> New Tenant
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-overlay">
+    <div class="spinner"></div>
+    <p>Loading dashboard...</p>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="dashboard-tabs">
+    <button
+      [class.active]="selectedView === 'overview'"
+      (click)="changeView('overview')">
+      📊 Overview
+    </button>
+    <button
+      [class.active]="selectedView === 'tenants'"
+      (click)="changeView('tenants')">
+      🏢 Tenants
+    </button>
+    <button
+      [class.active]="selectedView === 'activity'"
+      (click)="changeView('activity')">
+      📜 Activity
+    </button>
+    <button
+      [class.active]="selectedView === 'analytics'"
+      (click)="changeView('analytics')">
+      📈 Analytics
+    </button>
+  </div>
+
+  <!-- Overview Tab -->
+  <div *ngIf="selectedView === 'overview'" class="dashboard-content">
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card stat-primary">
+        <div class="stat-icon">🏢</div>
+        <div class="stat-info">
+          <h3>{{ stats.totalTenants }}</h3>
+          <p>Total Tenants</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+          <h3>{{ stats.activeTenants }}</h3>
+          <p>Active Tenants</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-info">
+        <div class="stat-icon">🆓</div>
+        <div class="stat-info">
+          <h3>{{ stats.trialTenants }}</h3>
+          <p>Trial Tenants</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-warning">
+        <div class="stat-icon">⏸️</div>
+        <div class="stat-info">
+          <h3>{{ stats.suspendedTenants }}</h3>
+          <p>Suspended</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-secondary">
+        <div class="stat-icon">👥</div>
+        <div class="stat-info">
+          <h3>{{ stats.totalUsers }}</h3>
+          <p>Total Users</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-revenue">
+        <div class="stat-icon">💰</div>
+        <div class="stat-info">
+          <h3>{{ formatCurrency(stats.monthlyRevenue) }}</h3>
+          <p>Monthly Revenue</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="section">
+      <h2>⚡ Quick Actions</h2>
+      <div class="quick-actions">
+        <button class="action-btn" (click)="navigateToTemplates()">
+          <span class="icon">📋</span>
+          <div>
+            <h4>Manage Templates</h4>
+            <p>Create and edit feature templates</p>
+          </div>
+        </button>
+
+        <button class="action-btn" (click)="navigateToAuditLogs()">
+          <span class="icon">📜</span>
+          <div>
+            <h4>Audit Logs</h4>
+            <p>View system activity logs</p>
+          </div>
+        </button>
+
+        <button class="action-btn" (click)="navigateToUsageMonitoring()">
+          <span class="icon">📊</span>
+          <div>
+            <h4>Usage Monitoring</h4>
+            <p>Monitor tenant usage and limits</p>
+          </div>
+        </button>
+
+        <button class="action-btn" routerLink="/tenant-onboarding">
+          <span class="icon">➕</span>
+          <div>
+            <h4>New Tenant</h4>
+            <p>Onboard a new tenant</p>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Alerts Section -->
+    <div class="alerts-section">
+      <!-- Expiring Tenants -->
+      <div class="alert-card" *ngIf="stats.expiringTenants.length > 0">
+        <h3>⚠️ Expiring Soon ({{ stats.expiringTenants.length }})</h3>
+        <div class="alert-list">
+          <div *ngFor="let tenant of stats.expiringTenants" class="alert-item">
+            <div class="alert-info">
+              <strong>{{ tenant.tenantId }}</strong>
+              <span class="badge" [ngClass]="getAccessLevelBadgeClass(tenant.accessLevel)">
+                {{ tenant.accessLevel }}
+              </span>
+            </div>
+            <div class="alert-meta">
+              Expires in {{ getDaysUntil(tenant.pricing.nextBillingDate) }} days
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Over Limit Tenants -->
+      <div class="alert-card" *ngIf="stats.overLimitTenants.length > 0">
+        <h3>🔴 Near/Over Limit ({{ stats.overLimitTenants.length }})</h3>
+        <div class="alert-list">
+          <div *ngFor="let tenant of stats.overLimitTenants" class="alert-item">
+            <div class="alert-info">
+              <strong>{{ tenant.tenantId }}</strong>
+              <span class="badge" [ngClass]="getAccessLevelBadgeClass(tenant.accessLevel)">
+                {{ tenant.accessLevel }}
+              </span>
+            </div>
+            <div class="alert-meta">
+              <ng-container *ngIf="tenant.usage">
+                Users: {{ tenant.usage.currentUsers }}/{{ tenant.limits.maxUsers }}
+                | Products: {{ tenant.usage.currentProducts }}/{{ tenant.limits.maxProducts }}
+              </ng-container>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="section">
+      <h2>📜 Recent Activity</h2>
+      <div class="activity-list">
+        <div *ngFor="let log of stats.recentActivity" class="activity-item">
+          <div class="activity-icon" [class.success]="log.success" [class.failed]="!log.success">
+            {{ log.success ? '✓' : '✗' }}
+          </div>
+          <div class="activity-content">
+            <p class="activity-description">{{ log.description }}</p>
+            <div class="activity-meta">
+              <span>{{ log.userName }}</span>
+              <span>•</span>
+              <span>{{ formatDateTime(log.timestamp) }}</span>
+              <span *ngIf="log.tenantName">•</span>
+              <span *ngIf="log.tenantName">{{ log.tenantName }}</span>
+            </div>
+          </div>
+          <span class="activity-action">{{ log.action }}</span>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" (click)="navigateToAuditLogs()">
+        View All Logs →
+      </button>
+    </div>
+  </div>
+
+  <!-- Tenants Tab -->
+  <div *ngIf="selectedView === 'tenants'" class="dashboard-content">
+    <div class="section">
+      <h2>🏢 All Tenants ({{ tenants.length }})</h2>
+
+      <div class="tenants-table-wrapper">
+        <table class="tenants-table">
+          <thead>
+            <tr>
+              <th>Tenant</th>
+              <th>Business Type</th>
+              <th>Access Level</th>
+              <th>Status</th>
+              <th>Users</th>
+              <th>Monthly Fee</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tenant of tenants">
+              <td>
+                <div class="tenant-info">
+                  <strong>{{ tenant.tenantId }}</strong>
+                </div>
+              </td>
+              <td>
+                <span class="business-type">
+                  {{ getBusinessTypeIcon(tenant.businessType) }} {{ tenant.businessType }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" [ngClass]="getAccessLevelBadgeClass(tenant.accessLevel)">
+                  {{ tenant.accessLevel }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" [ngClass]="getStatusBadgeClass(tenant.status)">
+                  {{ tenant.status }}
+                </span>
+              </td>
+              <td>
+                <span *ngIf="tenant.usage">
+                  {{ tenant.usage.currentUsers }}/{{ tenant.limits.maxUsers === -1 ? '∞' : tenant.limits.maxUsers }}
+                </span>
+              </td>
+              <td>{{ formatCurrency(tenant.pricing.monthlyFee) }}</td>
+              <td>{{ formatDate(tenant.createdAt) }}</td>
+              <td>
+                <div class="action-buttons">
+                  <button
+                    class="btn-icon"
+                    title="Configure"
+                    (click)="navigateToTenantConfig(tenant)">
+                    ⚙️
+                  </button>
+                  <button
+                    *ngIf="tenant.status === 'suspended'"
+                    class="btn-icon"
+                    title="Resume"
+                    (click)="quickResume(tenant)">
+                    ▶️
+                  </button>
+                  <button
+                    *ngIf="tenant.status === 'active'"
+                    class="btn-icon"
+                    title="Suspend"
+                    (click)="quickSuspend(tenant)">
+                    ⏸️
+                  </button>
+                  <button
+                    class="btn-icon"
+                    title="Upgrade"
+                    (click)="quickUpgrade(tenant)">
+                    ⬆️
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Tab -->
+  <div *ngIf="selectedView === 'activity'" class="dashboard-content">
+    <div class="section">
+      <h2>📜 System Activity</h2>
+      <div class="activity-list activity-full">
+        <div *ngFor="let log of stats.recentActivity" class="activity-item">
+          <div class="activity-icon" [class.success]="log.success" [class.failed]="!log.success">
+            {{ log.success ? '✓' : '✗' }}
+          </div>
+          <div class="activity-content">
+            <p class="activity-description"><strong>{{ log.action }}:</strong> {{ log.description }}</p>
+            <div class="activity-meta">
+              <span><strong>User:</strong> {{ log.userName }}</span>
+              <span>•</span>
+              <span><strong>Time:</strong> {{ formatDateTime(log.timestamp) }}</span>
+              <span *ngIf="log.tenantName">•</span>
+              <span *ngIf="log.tenantName"><strong>Tenant:</strong> {{ log.tenantName }}</span>
+              <span>•</span>
+              <span><strong>Module:</strong> {{ log.module }}</span>
+            </div>
+          </div>
+          <span class="severity-badge" [class]="'severity-' + log.severity">
+            {{ log.severity }}
+          </span>
+        </div>
+      </div>
+      <button class="btn btn-primary" (click)="navigateToAuditLogs()">
+        View All Audit Logs →
+      </button>
+    </div>
+  </div>
+
+  <!-- Analytics Tab -->
+  <div *ngIf="selectedView === 'analytics'" class="dashboard-content">
+    <!-- Business Type Distribution -->
+    <div class="section">
+      <h2>📊 Business Type Distribution</h2>
+      <div class="chart-cards">
+        <div class="chart-card">
+          <div class="chart-icon">💎</div>
+          <h3>{{ stats.byBusinessType.jewellery }}</h3>
+          <p>Jewellery</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-icon">🍽️</div>
+          <h3>{{ stats.byBusinessType.restaurant }}</h3>
+          <p>Restaurant</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-icon">💊</div>
+          <h3>{{ stats.byBusinessType.medical }}</h3>
+          <p>Medical</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-icon">🏪</div>
+          <h3>{{ stats.byBusinessType.retail }}</h3>
+          <p>Retail</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-icon">🏭</div>
+          <h3>{{ stats.byBusinessType.manufacturing }}</h3>
+          <p>Manufacturing</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-icon">🔧</div>
+          <h3>{{ stats.byBusinessType.services }}</h3>
+          <p>Services</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access Level Distribution -->
+    <div class="section">
+      <h2>💳 Access Level Distribution</h2>
+      <div class="chart-cards">
+        <div class="chart-card">
+          <div class="chart-icon">🆓</div>
+          <h3>{{ stats.byAccessLevel.free }}</h3>
+          <p>Free</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-icon">📦</div>
+          <h3>{{ stats.byAccessLevel.small }}</h3>
+          <p>Small</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-icon">⭐</div>
+          <h3>{{ stats.byAccessLevel.advanced }}</h3>
+          <p>Advanced</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-icon">👑</div>
+          <h3>{{ stats.byAccessLevel.enterprise }}</h3>
+          <p>Enterprise</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Revenue Breakdown -->
+    <div class="section">
+      <h2>💰 Revenue Overview</h2>
+      <div class="revenue-cards">
+        <div class="revenue-card">
+          <h3>{{ formatCurrency(stats.monthlyRevenue) }}</h3>
+          <p>Monthly Recurring Revenue (MRR)</p>
+        </div>
+        <div class="revenue-card">
+          <h3>{{ formatCurrency(stats.totalRevenue) }}</h3>
+          <p>Total Revenue</p>
+        </div>
+        <div class="revenue-card">
+          <h3>{{ formatCurrency(stats.monthlyRevenue / (stats.activeTenants || 1)) }}</h3>
+          <p>Average Revenue Per Tenant</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
