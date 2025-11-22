@@ -1,0 +1,463 @@
+.gold-rate-management {
+  padding: 2rem;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fef9e7 0%, #f8e8d4 100%);
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    .header-content {
+      h1 { margin: 0; font-size: 2rem; color: #b8860b; }
+      .subtitle { margin: 0.5rem 0 0; color: #718096; }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+  }
+
+  .view-switcher {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    .view-btn {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #4a5568;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover { background: #f7fafc; }
+      &.active {
+        background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
+        color: white;
+      }
+    }
+  }
+
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4rem;
+    color: #718096;
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #b8860b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    p { margin-top: 1rem; }
+  }
+
+  // Current Rates View
+  .current-rates-view {
+    .rates-container {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+      .rates-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f7e9c9;
+
+        h2 { margin: 0; color: #2d3748; }
+        .rates-meta {
+          display: flex;
+          gap: 1rem;
+          .rate-date { color: #b8860b; font-weight: 600; }
+          .rate-source { color: #718096; }
+        }
+      }
+
+      .rates-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+
+        .rate-card {
+          background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+          border: 2px solid #f7e9c9;
+          border-radius: 12px;
+          padding: 1.5rem;
+          transition: all 0.3s;
+
+          &:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(184, 134, 11, 0.2);
+          }
+
+          .rate-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+
+            .metal-icon { font-size: 1.5rem; }
+            h3 { margin: 0; color: #92400e; font-size: 1.1rem; }
+          }
+
+          .rate-card-body {
+            .rate-main {
+              text-align: center;
+              padding: 1rem;
+              background: white;
+              border-radius: 8px;
+              margin-bottom: 1rem;
+
+              .rate-label {
+                display: block;
+                font-size: 0.8rem;
+                color: #718096;
+                text-transform: uppercase;
+                margin-bottom: 0.25rem;
+              }
+              .rate-value {
+                display: block;
+                font-size: 1.75rem;
+                font-weight: 700;
+                color: #b8860b;
+              }
+              .rate-unit {
+                display: block;
+                font-size: 0.85rem;
+                color: #a0aec0;
+              }
+            }
+
+            .rate-details {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 0.5rem;
+
+              .rate-detail {
+                text-align: center;
+                padding: 0.5rem;
+                background: rgba(255, 255, 255, 0.7);
+                border-radius: 6px;
+
+                .detail-label {
+                  display: block;
+                  font-size: 0.75rem;
+                  color: #718096;
+                }
+                .detail-value {
+                  font-weight: 600;
+                  color: #2d3748;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      .rates-remarks {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: #f7fafc;
+        border-radius: 8px;
+        color: #4a5568;
+      }
+    }
+  }
+
+  // Rate Entry View
+  .rate-entry-view {
+    .entry-container {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+      .entry-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+
+        h2 { margin: 0; color: #2d3748; }
+        .date-selector {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          label { font-weight: 600; color: #4a5568; }
+        }
+      }
+
+      .form-section {
+        margin-bottom: 2rem;
+
+        h3 {
+          margin: 0 0 1rem;
+          color: #2d3748;
+          font-size: 1.1rem;
+        }
+      }
+
+      .rates-table {
+        overflow-x: auto;
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+
+          th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+          }
+
+          th {
+            background: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.9rem;
+          }
+
+          .metal-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            .metal-icon { font-size: 1.25rem; }
+          }
+
+          .rate-input {
+            width: 120px;
+          }
+
+          .unit-select {
+            width: 140px;
+          }
+        }
+      }
+
+      .form-row {
+        display: flex;
+        gap: 1rem;
+
+        .form-group {
+          flex: 1;
+          &.flex-2 { flex: 2; }
+
+          label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #4a5568;
+          }
+        }
+      }
+
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #e2e8f0;
+      }
+    }
+  }
+
+  // Rate History View
+  .rate-history-view {
+    .history-container {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+      .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+
+        h2 { margin: 0; color: #2d3748; }
+        .history-filters {
+          display: flex;
+          gap: 1rem;
+
+          .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            label { font-weight: 600; color: #4a5568; white-space: nowrap; }
+            .form-control { width: auto; }
+          }
+        }
+      }
+
+      .history-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+
+        .summary-card {
+          background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+          border: 2px solid #f7e9c9;
+          border-radius: 12px;
+          padding: 1.25rem;
+          text-align: center;
+
+          .summary-label {
+            display: block;
+            font-size: 0.85rem;
+            color: #718096;
+            margin-bottom: 0.5rem;
+          }
+          .summary-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #b8860b;
+          }
+        }
+      }
+
+      .history-table {
+        overflow-x: auto;
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+
+          th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+          }
+
+          th {
+            background: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+          }
+
+          .rate-column {
+            font-weight: 600;
+            color: #b8860b;
+          }
+        }
+      }
+    }
+  }
+
+  // Change indicators
+  .positive-change { color: #22c55e !important; }
+  .negative-change { color: #ef4444 !important; }
+
+  // Empty state
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 12px;
+
+    .empty-icon { font-size: 4rem; margin-bottom: 1rem; }
+    h2 { margin: 0 0 0.5rem; color: #2d3748; }
+    p { color: #718096; margin-bottom: 1.5rem; }
+  }
+
+  // Buttons
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    &.btn-primary {
+      background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
+      color: white;
+      &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(184, 134, 11, 0.4); }
+    }
+
+    &.btn-outline {
+      background: white;
+      border: 2px solid #e2e8f0;
+      color: #4a5568;
+      &:hover:not(:disabled) { border-color: #cbd5e0; background: #f7fafc; }
+    }
+  }
+
+  .form-control {
+    padding: 0.625rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: #b8860b;
+      box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.1);
+    }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  // Responsive
+  @media (max-width: 768px) {
+    padding: 1rem;
+
+    .page-header {
+      flex-direction: column;
+      gap: 1rem;
+      .header-actions { width: 100%; justify-content: flex-end; }
+    }
+
+    .view-switcher {
+      flex-direction: column;
+      .view-btn { text-align: center; }
+    }
+
+    .rate-entry-view .entry-container {
+      .entry-header { flex-direction: column; align-items: flex-start; }
+      .form-row { flex-direction: column; }
+      .rates-table table { font-size: 0.85rem; }
+    }
+
+    .rate-history-view .history-header {
+      flex-direction: column;
+      align-items: flex-start;
+      .history-filters { flex-direction: column; width: 100%; }
+    }
+  }
+}
