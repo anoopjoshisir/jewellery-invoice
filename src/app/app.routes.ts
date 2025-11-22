@@ -27,6 +27,9 @@ import { MenuManagementComponent } from './components/menu-management/menu-manag
 import { OrderManagementComponent } from './components/order-management/order-management.component';
 import { KOTManagementComponent } from './components/kot-management/kot-management.component';
 import { KitchenDisplaySystemComponent } from './components/kitchen-display-system/kitchen-display-system.component';
+import { GoldRateManagementComponent } from './components/gold-rate-management/gold-rate-management.component';
+import { ProductCatalogComponent } from './components/product-catalog/product-catalog.component';
+import { OldGoldPurchaseComponent } from './components/old-gold-purchase/old-gold-purchase.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -159,6 +162,30 @@ export const routes: Routes = [
       {
         path: 'kitchen-display',
         component: KitchenDisplaySystemComponent
+      }
+    ]
+  },
+  // Jewellery Module Routes
+  {
+    path: 'jewellery',
+    canActivate: [AuthGuard],
+    children: [
+      {
+        path: '',
+        redirectTo: 'gold-rates',
+        pathMatch: 'full'
+      },
+      {
+        path: 'gold-rates',
+        component: GoldRateManagementComponent
+      },
+      {
+        path: 'products',
+        component: ProductCatalogComponent
+      },
+      {
+        path: 'old-gold',
+        component: OldGoldPurchaseComponent
       }
     ]
   },
