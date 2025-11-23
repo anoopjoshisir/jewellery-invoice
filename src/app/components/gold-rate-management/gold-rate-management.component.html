@@ -1,0 +1,302 @@
+<div class="gold-rate-management">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1>💰 Gold Rate Management</h1>
+      <p class="subtitle">Manage daily gold and metal rates</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="loadCurrentRates()" [disabled]="isLoading">
+        {{ isLoading ? '🔄 Loading...' : '🔄 Refresh' }}
+      </button>
+      <button *ngIf="currentRates && !todaysRate" class="btn btn-primary" (click)="clonePreviousRate()">
+        📋 Clone Previous Rate
+      </button>
+    </div>
+  </div>
+
+  <!-- View Switcher -->
+  <div class="view-switcher">
+    <button
+      class="view-btn"
+      [class.active]="viewMode === 'current'"
+      (click)="switchView('current')">
+      📊 Current Rates
+    </button>
+    <button
+      class="view-btn"
+      [class.active]="viewMode === 'entry'"
+      (click)="switchView('entry')">
+      ✏️ Enter Rates
+    </button>
+    <button
+      class="view-btn"
+      [class.active]="viewMode === 'history'"
+      (click)="switchView('history')">
+      📈 Rate History
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading rates...</p>
+  </div>
+
+  <!-- Current Rates View -->
+  <div *ngIf="!isLoading && viewMode === 'current'" class="current-rates-view">
+    <div *ngIf="currentRates" class="rates-container">
+      <div class="rates-header">
+        <h2>Latest Rates</h2>
+        <div class="rates-meta">
+          <span class="rate-date">📅 {{ formatDate(currentRates.date) }}</span>
+          <span class="rate-source" *ngIf="currentRates.source">
+            Source: {{ currentRates.source | titlecase }}
+          </span>
+        </div>
+      </div>
+
+      <div class="rates-grid">
+        <div *ngFor="let rate of currentRates.rates" class="rate-card">
+          <div class="rate-card-header">
+            <span class="metal-icon">
+              {{ rate.metalType.includes('GOLD') ? '🥇' : rate.metalType === 'SILVER' ? '🥈' : '💎' }}
+            </span>
+            <h3>{{ getMetalTypeLabel(rate.metalType) }}</h3>
+          </div>
+
+          <div class="rate-card-body">
+            <div class="rate-main">
+              <span class="rate-label">Rate</span>
+              <span class="rate-value">{{ formatCurrency(rate.rate) }}</span>
+              <span class="rate-unit">{{ getRateUnitLabel(rate.unit) }}</span>
+            </div>
+
+            <div class="rate-details">
+              <div class="rate-detail" *ngIf="rate.buyRate">
+                <span class="detail-label">Buy Rate</span>
+                <span class="detail-value">{{ formatCurrency(rate.buyRate) }}</span>
+              </div>
+              <div class="rate-detail" *ngIf="rate.sellRate">
+                <span class="detail-label">Sell Rate</span>
+                <span class="detail-value">{{ formatCurrency(rate.sellRate) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="currentRates.remarks" class="rates-remarks">
+        <strong>Remarks:</strong> {{ currentRates.remarks }}
+      </div>
+    </div>
+
+    <div *ngIf="!currentRates" class="empty-state">
+      <div class="empty-icon">💰</div>
+      <h2>No Rates Found</h2>
+      <p>No gold rates have been entered yet. Click "Enter Rates" to add today's rates.</p>
+      <button class="btn btn-primary" (click)="switchView('entry')">
+        ✏️ Enter Today's Rates
+      </button>
+    </div>
+  </div>
+
+  <!-- Rate Entry View -->
+  <div *ngIf="!isLoading && viewMode === 'entry'" class="rate-entry-view">
+    <div class="entry-container">
+      <div class="entry-header">
+        <h2>Enter Gold Rates</h2>
+        <div class="date-selector">
+          <label>Date:</label>
+          <input
+            type="date"
+            [(ngModel)]="selectedDate"
+            (change)="loadRateForDate()"
+            class="form-control" />
+        </div>
+      </div>
+
+      <div class="entry-form">
+        <div class="form-section">
+          <h3>Metal Rates</h3>
+          <div class="rates-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Metal Type</th>
+                  <th>Rate (₹)</th>
+                  <th>Unit</th>
+                  <th>Buy Rate (₹)</th>
+                  <th>Sell Rate (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let rate of rateForm">
+                  <td class="metal-name">
+                    <span class="metal-icon">
+                      {{ rate.metalType.includes('GOLD') ? '🥇' : rate.metalType === 'SILVER' ? '🥈' : '💎' }}
+                    </span>
+                    {{ getMetalTypeLabel(rate.metalType) }}
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      [(ngModel)]="rate.rate"
+                      (change)="onRateChange(rate)"
+                      min="0"
+                      step="0.01"
+                      class="form-control rate-input"
+                      placeholder="0.00" />
+                  </td>
+                  <td>
+                    <select [(ngModel)]="rate.unit" class="form-control unit-select">
+                      <option *ngFor="let unit of rateUnits" [value]="unit">
+                        {{ getRateUnitLabel(unit) }}
+                      </option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      [(ngModel)]="rate.buyRate"
+                      min="0"
+                      step="0.01"
+                      class="form-control rate-input"
+                      placeholder="0.00" />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      [(ngModel)]="rate.sellRate"
+                      min="0"
+                      step="0.01"
+                      class="form-control rate-input"
+                      placeholder="0.00" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Additional Information</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Source</label>
+              <select [(ngModel)]="rateSource" class="form-control">
+                <option value="manual">Manual Entry</option>
+                <option value="api">API Import</option>
+              </select>
+            </div>
+            <div class="form-group flex-2">
+              <label>Remarks</label>
+              <input
+                type="text"
+                [(ngModel)]="remarks"
+                class="form-control"
+                placeholder="Any notes about today's rates" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-outline" (click)="switchView('current')">
+            Cancel
+          </button>
+          <button class="btn btn-primary" (click)="saveRates()" [disabled]="isLoading">
+            {{ isLoading ? 'Saving...' : '💾 Save Rates' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rate History View -->
+  <div *ngIf="!isLoading && viewMode === 'history'" class="rate-history-view">
+    <div class="history-container">
+      <div class="history-header">
+        <h2>Rate History</h2>
+        <div class="history-filters">
+          <div class="filter-group">
+            <label>Metal Type:</label>
+            <select
+              [(ngModel)]="selectedMetalForHistory"
+              (change)="onMetalChangeForHistory()"
+              class="form-control">
+              <option *ngFor="let metal of metalTypes" [value]="metal">
+                {{ getMetalTypeLabel(metal) }}
+              </option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Period:</label>
+            <select
+              [(ngModel)]="historyDays"
+              (change)="loadRateHistory()"
+              class="form-control">
+              <option [value]="7">Last 7 Days</option>
+              <option [value]="30">Last 30 Days</option>
+              <option [value]="60">Last 60 Days</option>
+              <option [value]="90">Last 90 Days</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="historyWithChanges.length > 0" class="history-content">
+        <!-- Summary Cards -->
+        <div class="history-summary">
+          <div class="summary-card">
+            <span class="summary-label">Latest Rate</span>
+            <span class="summary-value">
+              {{ historyWithChanges[0] ? formatCurrency(historyWithChanges[0].rate) : '-' }}
+            </span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">Change (Day)</span>
+            <span class="summary-value" [class]="getChangeClass(historyWithChanges[0]?.change)">
+              {{ formatChange(historyWithChanges[0]?.change) }}
+            </span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">Change %</span>
+            <span class="summary-value" [class]="getChangeClass(historyWithChanges[0]?.changePercent)">
+              {{ formatChangePercent(historyWithChanges[0]?.changePercent) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- History Table -->
+        <div class="history-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Rate (₹)</th>
+                <th>Change</th>
+                <th>Change %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let history of historyWithChanges">
+                <td>{{ formatDate(history.date) }}</td>
+                <td class="rate-column">{{ formatCurrency(history.rate) }}</td>
+                <td [class]="getChangeClass(history.change)">
+                  {{ formatChange(history.change) }}
+                </td>
+                <td [class]="getChangeClass(history.changePercent)">
+                  {{ formatChangePercent(history.changePercent) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div *ngIf="historyWithChanges.length === 0" class="empty-state">
+        <p>No rate history found for the selected period.</p>
+      </div>
+    </div>
+  </div>
+</div>

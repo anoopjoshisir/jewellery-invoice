@@ -1,0 +1,635 @@
+<div class="product-catalog">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Product Catalog</h1>
+      <p class="subtitle">Manage your jewellery inventory</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="updateAllPrices()" [disabled]="isLoading">
+        Update All Prices
+      </button>
+      <button class="btn btn-primary" (click)="openAddModal()" [disabled]="isLoading">
+        + Add Product
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-cards" *ngIf="productSummary">
+    <div class="summary-card">
+      <span class="summary-icon">📦</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ productSummary.totalProducts }}</span>
+        <span class="summary-label">Total Products</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-icon">✅</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ productSummary.inStockProducts }}</span>
+        <span class="summary-label">In Stock</span>
+      </div>
+    </div>
+    <div class="summary-card warning" (click)="switchTab('low-stock')">
+      <span class="summary-icon">⚠️</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ productSummary.lowStockProducts }}</span>
+        <span class="summary-label">Low Stock</span>
+      </div>
+    </div>
+    <div class="summary-card danger" (click)="switchTab('out-of-stock')">
+      <span class="summary-icon">❌</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ productSummary.outOfStockProducts }}</span>
+        <span class="summary-label">Out of Stock</span>
+      </div>
+    </div>
+    <div class="summary-card highlight">
+      <span class="summary-icon">💰</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ formatCurrency(productSummary.totalStockValue) }}</span>
+        <span class="summary-label">Stock Value</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.active]="activeTab === 'all'" (click)="switchTab('all')">
+      All Products
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'low-stock'" (click)="switchTab('low-stock')">
+      Low Stock ({{ productSummary?.lowStockProducts || 0 }})
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'out-of-stock'" (click)="switchTab('out-of-stock')">
+      Out of Stock ({{ productSummary?.outOfStockProducts || 0 }})
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <input
+        type="text"
+        class="form-control"
+        placeholder="Search by name, SKU, barcode..."
+        [(ngModel)]="searchTerm"
+        (input)="onSearchChange()"
+      />
+    </div>
+    <div class="filter-group">
+      <select class="form-control" [(ngModel)]="selectedCategory" (change)="onCategoryChange()">
+        <option value="">All Categories</option>
+        <option *ngFor="let cat of categories" [value]="cat">
+          {{ getCategoryLabel(cat) }}
+        </option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <select class="form-control" [(ngModel)]="selectedStockStatus" (change)="onStockStatusChange()">
+        <option value="">All Stock Status</option>
+        <option *ngFor="let status of stockStatuses" [value]="status">
+          {{ getStockStatusLabel(status) }}
+        </option>
+      </select>
+    </div>
+    <div class="view-toggle">
+      <button
+        class="view-btn"
+        [class.active]="viewMode === 'grid'"
+        (click)="viewMode = 'grid'"
+      >
+        Grid
+      </button>
+      <button
+        class="view-btn"
+        [class.active]="viewMode === 'list'"
+        (click)="viewMode = 'list'"
+      >
+        List
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading products...</p>
+  </div>
+
+  <!-- Products Grid -->
+  <div class="products-grid" *ngIf="!isLoading && viewMode === 'grid'">
+    <div class="product-card" *ngFor="let product of filteredProducts" (click)="openEditModal(product)">
+      <div class="product-image">
+        <img *ngIf="product.images?.length" [src]="product.images[0]" [alt]="product.name" />
+        <div class="placeholder-image" *ngIf="!product.images?.length">
+          <span>{{ getCategoryLabel(product.category).charAt(0) }}</span>
+        </div>
+        <span
+          class="stock-badge"
+          [style.background-color]="getStockStatusColor(product.stockStatus)"
+        >
+          {{ getStockStatusLabel(product.stockStatus) }}
+        </span>
+        <span class="featured-badge" *ngIf="product.isFeatured">Featured</span>
+      </div>
+      <div class="product-info">
+        <div class="product-header">
+          <h3 class="product-name">{{ product.name }}</h3>
+          <span class="product-sku">{{ product.sku }}</span>
+        </div>
+        <div class="product-details">
+          <span class="detail-item">
+            <span class="detail-label">Category:</span>
+            {{ getCategoryLabel(product.category) }}
+          </span>
+          <span class="detail-item">
+            <span class="detail-label">Metal:</span>
+            {{ product.metalType }} ({{ product.purity }})
+          </span>
+          <span class="detail-item">
+            <span class="detail-label">Weight:</span>
+            {{ formatWeight(product.grossWeight) }}
+          </span>
+        </div>
+        <div class="product-pricing">
+          <span class="price">{{ formatCurrency(product.sellingPrice || product.totalValue) }}</span>
+          <span class="stock">Stock: {{ product.stockQuantity }}</span>
+        </div>
+        <div class="product-actions" (click)="$event.stopPropagation()">
+          <button class="action-btn" (click)="openStockModal(product)" title="Manage Stock">
+            📊
+          </button>
+          <button class="action-btn" (click)="openEditModal(product)" title="Edit">
+            ✏️
+          </button>
+          <button class="action-btn delete" (click)="confirmDelete(product)" title="Delete">
+            🗑️
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products List -->
+  <div class="products-list" *ngIf="!isLoading && viewMode === 'list'">
+    <table>
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Metal</th>
+          <th>Weight</th>
+          <th>Price</th>
+          <th>Stock</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let product of filteredProducts">
+          <td class="sku-cell">{{ product.sku }}</td>
+          <td class="name-cell">
+            <span class="product-name">{{ product.name }}</span>
+            <span class="hallmark-badge" *ngIf="product.hasHallmark">Hallmarked</span>
+          </td>
+          <td>{{ getCategoryLabel(product.category) }}</td>
+          <td>{{ product.metalType }} ({{ product.purity }})</td>
+          <td>{{ formatWeight(product.grossWeight) }}</td>
+          <td class="price-cell">{{ formatCurrency(product.sellingPrice || product.totalValue) }}</td>
+          <td>{{ product.stockQuantity }}</td>
+          <td>
+            <span
+              class="status-badge"
+              [style.background-color]="getStockStatusColor(product.stockStatus)"
+            >
+              {{ getStockStatusLabel(product.stockStatus) }}
+            </span>
+          </td>
+          <td class="actions-cell">
+            <button class="action-btn" (click)="openStockModal(product)" title="Manage Stock">📊</button>
+            <button class="action-btn" (click)="openEditModal(product)" title="Edit">✏️</button>
+            <button class="action-btn delete" (click)="confirmDelete(product)" title="Delete">🗑️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!isLoading && filteredProducts.length === 0">
+    <span class="empty-icon">📦</span>
+    <h2>No Products Found</h2>
+    <p *ngIf="searchTerm || selectedCategory">Try adjusting your filters</p>
+    <p *ngIf="!searchTerm && !selectedCategory">Start by adding your first product</p>
+    <button class="btn btn-primary" (click)="openAddModal()">+ Add Product</button>
+  </div>
+
+  <!-- Add/Edit Product Modal -->
+  <div class="modal-overlay" *ngIf="showAddModal || showEditModal" (click)="closeModal()">
+    <div class="modal product-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ showAddModal ? 'Add New Product' : 'Edit Product' }}</h2>
+        <button class="close-btn" (click)="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-tabs">
+          <button class="tab active">Basic Info</button>
+          <button class="tab">Metal & Weight</button>
+          <button class="tab">Pricing</button>
+          <button class="tab" *ngIf="productForm.hasStones">Stones</button>
+        </div>
+
+        <div class="form-section">
+          <h3>Basic Information</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>SKU *</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="productForm.sku"
+                placeholder="Enter SKU"
+                [disabled]="showEditModal"
+              />
+            </div>
+            <div class="form-group">
+              <label>Barcode</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="productForm.barcode"
+                placeholder="Enter barcode"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label>Product Name *</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="productForm.name"
+                placeholder="Enter product name"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Category *</label>
+              <select class="form-control" [(ngModel)]="productForm.category">
+                <option *ngFor="let cat of categories" [value]="cat">
+                  {{ getCategoryLabel(cat) }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Product Type</label>
+              <select class="form-control" [(ngModel)]="productForm.productType">
+                <option *ngFor="let type of productTypes" [value]="type">
+                  {{ PRODUCT_TYPE_LABELS[type] }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Gender</label>
+              <select class="form-control" [(ngModel)]="productForm.gender">
+                <option *ngFor="let g of genders" [value]="g">{{ g }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label>Description</label>
+              <textarea
+                class="form-control"
+                rows="2"
+                [(ngModel)]="productForm.description"
+                placeholder="Enter product description"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Metal & Weight Details</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Metal Type</label>
+              <select class="form-control" [(ngModel)]="productForm.metalType">
+                <option *ngFor="let metal of metalTypes" [value]="metal">{{ metal }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Purity</label>
+              <select class="form-control" [(ngModel)]="productForm.purity">
+                <option *ngFor="let p of purities" [value]="p">{{ p }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Gross Weight (g) *</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="productForm.grossWeight"
+                (change)="onWeightChange()"
+                step="0.001"
+                min="0"
+              />
+            </div>
+            <div class="form-group">
+              <label>Wastage %</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="productForm.wastagePercent"
+                (change)="onWeightChange()"
+                step="0.1"
+                min="0"
+              />
+            </div>
+            <div class="form-group">
+              <label>Net Weight (g)</label>
+              <input
+                type="number"
+                class="form-control"
+                [value]="productForm.netWeight"
+                disabled
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="productForm.hasHallmark" />
+                Has Hallmark
+              </label>
+            </div>
+          </div>
+          <div class="form-row" *ngIf="productForm.hasHallmark">
+            <div class="form-group">
+              <label>Hallmark Number</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="productForm.hallmarkNumber"
+              />
+            </div>
+            <div class="form-group">
+              <label>HUID</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="productForm.huid"
+                placeholder="6-digit HUID"
+              />
+            </div>
+            <div class="form-group">
+              <label>Hallmark Center</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="productForm.hallmarkCenter"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Pricing</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Gold Rate (per gram)</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="productForm.goldRate"
+                (change)="onGoldRateChange()"
+              />
+            </div>
+            <div class="form-group">
+              <label>Gold Value</label>
+              <input
+                type="number"
+                class="form-control"
+                [value]="productForm.goldValue"
+                disabled
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Making Charges Type</label>
+              <select
+                class="form-control"
+                [(ngModel)]="productForm.makingChargesType"
+                (change)="onWeightChange()"
+              >
+                <option *ngFor="let type of makingChargesTypes" [value]="type.value">
+                  {{ type.label }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Making Charges Value</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="productForm.makingChargesValue"
+                (change)="onWeightChange()"
+              />
+            </div>
+            <div class="form-group">
+              <label>Making Charges</label>
+              <input
+                type="number"
+                class="form-control"
+                [value]="productForm.makingCharges"
+                disabled
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="productForm.hasStones" />
+                Has Stones/Diamonds
+              </label>
+            </div>
+          </div>
+          <div class="form-row" *ngIf="productForm.hasStones">
+            <div class="form-group">
+              <label>Stone Value</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="productForm.stoneValue"
+                (change)="onWeightChange()"
+              />
+            </div>
+          </div>
+          <div class="pricing-summary">
+            <div class="summary-row">
+              <span>Gold Value:</span>
+              <span>{{ formatCurrency(productForm.goldValue) }}</span>
+            </div>
+            <div class="summary-row">
+              <span>Making Charges:</span>
+              <span>{{ formatCurrency(productForm.makingCharges) }}</span>
+            </div>
+            <div class="summary-row" *ngIf="productForm.hasStones">
+              <span>Stone Value:</span>
+              <span>{{ formatCurrency(productForm.stoneValue) }}</span>
+            </div>
+            <div class="summary-row total">
+              <span>Total Value:</span>
+              <span>{{ formatCurrency(productForm.totalValue) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Stock & Inventory</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Stock Quantity</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="productForm.stockQuantity"
+                min="0"
+              />
+            </div>
+            <div class="form-group">
+              <label>Min Stock Level</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="productForm.minStockLevel"
+                min="0"
+              />
+            </div>
+            <div class="form-group">
+              <label>Shelf Location</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="productForm.shelfLocation"
+                placeholder="e.g., A1-S3"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeModal()">Cancel</button>
+        <button class="btn btn-primary" (click)="saveProduct()" [disabled]="isLoading">
+          {{ showAddModal ? 'Add Product' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock Modal -->
+  <div class="modal-overlay" *ngIf="showStockModal" (click)="closeModal()">
+    <div class="modal stock-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Manage Stock - {{ selectedProduct?.name }}</h2>
+        <button class="close-btn" (click)="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="current-stock">
+          <span class="stock-label">Current Stock:</span>
+          <span class="stock-value">{{ selectedProduct?.stockQuantity }}</span>
+        </div>
+
+        <div class="form-section">
+          <h3>Stock Adjustment</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Type</label>
+              <select class="form-control" [(ngModel)]="stockAdjustment.type">
+                <option value="IN">Stock In</option>
+                <option value="OUT">Stock Out</option>
+                <option value="ADJUSTMENT">Adjustment</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Quantity</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="stockAdjustment.quantity"
+                min="1"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label>Notes</label>
+              <textarea
+                class="form-control"
+                rows="2"
+                [(ngModel)]="stockAdjustment.notes"
+                placeholder="Reason for adjustment"
+              ></textarea>
+            </div>
+          </div>
+          <button class="btn btn-primary" (click)="adjustStock()" [disabled]="isLoading">
+            Update Stock
+          </button>
+        </div>
+
+        <div class="form-section">
+          <h3>Transaction History</h3>
+          <div class="transaction-list">
+            <div class="transaction-item" *ngFor="let txn of stockTransactions">
+              <span class="txn-icon">{{ getTransactionTypeIcon(txn.transactionType) }}</span>
+              <div class="txn-details">
+                <span class="txn-type">{{ txn.transactionType }}</span>
+                <span class="txn-quantity">
+                  {{ txn.transactionType === 'OUT' ? '-' : '+' }}{{ txn.quantity }}
+                </span>
+                <span class="txn-date">{{ txn.transactionDate | date:'short' }}</span>
+                <span class="txn-notes" *ngIf="txn.notes">{{ txn.notes }}</span>
+              </div>
+              <div class="txn-stock">
+                <span>{{ txn.previousStock }} → {{ txn.newStock }}</span>
+              </div>
+            </div>
+            <div class="empty-transactions" *ngIf="stockTransactions.length === 0">
+              No transaction history
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" *ngIf="showDeleteConfirm" (click)="closeModal()">
+    <div class="modal delete-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Confirm Delete</h2>
+        <button class="close-btn" (click)="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete "{{ selectedProduct?.name }}"?</p>
+        <p class="warning-text">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeModal()">Cancel</button>
+        <button class="btn btn-danger" (click)="deleteProduct()" [disabled]="isLoading">
+          Delete Product
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

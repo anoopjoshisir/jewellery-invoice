@@ -1,0 +1,685 @@
+<div class="old-gold-purchase">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Old Gold Purchase</h1>
+      <p class="subtitle">Buy old gold from customers</p>
+    </div>
+    <div class="header-actions">
+      <button
+        class="btn btn-outline"
+        *ngIf="viewMode !== 'list'"
+        (click)="backToList()"
+      >
+        ← Back to List
+      </button>
+      <button
+        class="btn btn-primary"
+        *ngIf="viewMode === 'list'"
+        (click)="switchView('entry')"
+        [disabled]="isLoading"
+      >
+        + New Purchase
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards (List View) -->
+  <div class="summary-cards" *ngIf="viewMode === 'list' && purchaseSummary">
+    <div class="summary-card">
+      <span class="summary-icon">📋</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ purchaseSummary.totalPurchases }}</span>
+        <span class="summary-label">Total Purchases</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-icon">⚖️</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ formatWeight(purchaseSummary.totalWeight) }}</span>
+        <span class="summary-label">Total Weight</span>
+      </div>
+    </div>
+    <div class="summary-card highlight">
+      <span class="summary-icon">💰</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ formatCurrency(purchaseSummary.totalValue) }}</span>
+        <span class="summary-label">Total Value</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-icon">📊</span>
+      <div class="summary-info">
+        <span class="summary-value">{{ formatCurrency(purchaseSummary.averageRate) }}/g</span>
+        <span class="summary-label">Avg. Rate</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
+
+  <!-- LIST VIEW -->
+  <ng-container *ngIf="viewMode === 'list' && !isLoading">
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Search by purchase #, customer name, mobile..."
+          [(ngModel)]="searchTerm"
+          (input)="onSearchChange()"
+        />
+      </div>
+      <div class="filter-group">
+        <select class="form-control" [(ngModel)]="dateFilter" (change)="onDateFilterChange()">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">Last 7 Days</option>
+          <option value="month">Last 30 Days</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+      <ng-container *ngIf="dateFilter === 'custom'">
+        <div class="filter-group">
+          <input
+            type="date"
+            class="form-control"
+            [(ngModel)]="startDate"
+            (change)="onDateFilterChange()"
+          />
+        </div>
+        <div class="filter-group">
+          <input
+            type="date"
+            class="form-control"
+            [(ngModel)]="endDate"
+            (change)="onDateFilterChange()"
+          />
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Purchase List -->
+    <div class="purchase-list" *ngIf="filteredPurchases.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Purchase #</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Items</th>
+            <th>Weight</th>
+            <th>Value</th>
+            <th>Payment</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let purchase of filteredPurchases" (click)="viewPurchaseDetail(purchase)">
+            <td class="purchase-number">{{ purchase.purchaseNumber }}</td>
+            <td>{{ formatDate(purchase.purchaseDate) }}</td>
+            <td>
+              <span class="customer-name">{{ purchase.customerName }}</span>
+              <span class="customer-mobile">{{ purchase.customerMobile }}</span>
+            </td>
+            <td>{{ purchase.items.length }} item(s)</td>
+            <td>{{ formatWeight(purchase.totalNetWeight) }}</td>
+            <td class="value-cell">{{ formatCurrency(purchase.totalValue) }}</td>
+            <td>{{ getPaymentModeLabel(purchase.paymentMode) }}</td>
+            <td>
+              <span
+                class="status-badge"
+                [style.background-color]="getStatusColor(purchase.status)"
+              >
+                {{ purchase.status }}
+              </span>
+            </td>
+            <td class="actions-cell" (click)="$event.stopPropagation()">
+              <button
+                class="action-btn"
+                (click)="viewPurchaseDetail(purchase)"
+                title="View Details"
+              >
+                👁️
+              </button>
+              <button
+                class="action-btn delete"
+                *ngIf="purchase.status !== 'CANCELLED'"
+                (click)="cancelPurchase(purchase)"
+                title="Cancel"
+              >
+                ❌
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="filteredPurchases.length === 0">
+      <span class="empty-icon">📦</span>
+      <h2>No Purchases Found</h2>
+      <p *ngIf="searchTerm">Try adjusting your search</p>
+      <p *ngIf="!searchTerm">Start by creating your first old gold purchase</p>
+      <button class="btn btn-primary" (click)="switchView('entry')">+ New Purchase</button>
+    </div>
+  </ng-container>
+
+  <!-- ENTRY VIEW -->
+  <ng-container *ngIf="viewMode === 'entry' && !isLoading">
+    <div class="entry-container">
+      <!-- Customer Details -->
+      <div class="form-section">
+        <h3>Customer Details</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Customer Name *</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="purchaseForm.customerName"
+              placeholder="Enter customer name"
+            />
+          </div>
+          <div class="form-group">
+            <label>Mobile Number *</label>
+            <input
+              type="tel"
+              class="form-control"
+              [(ngModel)]="purchaseForm.customerMobile"
+              placeholder="Enter mobile number"
+            />
+          </div>
+          <div class="form-group">
+            <label>Purchase Date</label>
+            <input
+              type="date"
+              class="form-control"
+              [(ngModel)]="purchaseForm.purchaseDate"
+            />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-2">
+            <label>Address</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="purchaseForm.customerAddress"
+              placeholder="Enter address"
+            />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>ID Proof Type</label>
+            <select class="form-control" [(ngModel)]="purchaseForm.customerIdProof">
+              <option value="">Select ID Proof</option>
+              <option *ngFor="let type of idProofTypes" [value]="type">{{ type }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>ID Number</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="purchaseForm.customerIdNumber"
+              placeholder="Enter ID number"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Item Section -->
+      <div class="form-section">
+        <h3>Add Item</h3>
+        <div class="item-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Item Type</label>
+              <select class="form-control" [(ngModel)]="currentItem.itemType">
+                <option *ngFor="let type of itemTypes" [value]="type">{{ type }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="currentItem.description"
+                placeholder="Brief description"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Gross Weight (g) *</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="currentItem.grossWeight"
+                (change)="calculateItemValues()"
+                step="0.001"
+                min="0"
+              />
+            </div>
+            <div class="form-group">
+              <label>Stone Weight (g)</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="currentItem.stoneWeight"
+                (change)="calculateItemValues()"
+                step="0.001"
+                min="0"
+              />
+            </div>
+            <div class="form-group">
+              <label>Net Weight (g)</label>
+              <input
+                type="number"
+                class="form-control"
+                [value]="currentItem.netWeight"
+                disabled
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Purity Marked</label>
+              <select class="form-control" [(ngModel)]="currentItem.purityMarked">
+                <option *ngFor="let p of purities" [value]="p">{{ p }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Purity Tested *</label>
+              <select
+                class="form-control"
+                [(ngModel)]="currentItem.purityTested"
+                (change)="calculateItemValues()"
+              >
+                <option *ngFor="let p of purities" [value]="p">{{ p }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Test Method</label>
+              <select class="form-control" [(ngModel)]="currentItem.testMethod">
+                <option *ngFor="let method of testMethods" [value]="method">
+                  {{ getTestMethodLabel(method) }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Condition</label>
+              <select class="form-control" [(ngModel)]="currentItem.condition">
+                <option *ngFor="let cond of conditions" [value]="cond">
+                  {{ getConditionLabel(cond) }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>24K Rate</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="currentItem.rate24K"
+                (change)="calculateItemValues()"
+              />
+            </div>
+            <div class="form-group">
+              <label>Rate for Purity</label>
+              <input
+                type="number"
+                class="form-control"
+                [value]="currentItem.rateForPurity"
+                disabled
+              />
+            </div>
+          </div>
+
+          <!-- Deductions -->
+          <div class="deductions-section">
+            <h4>Deductions</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Type</label>
+                <select class="form-control" [(ngModel)]="currentDeduction.type">
+                  <option value="">Select Type</option>
+                  <option *ngFor="let d of deductionTypes" [value]="d.value">
+                    {{ d.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Amount (₹)</label>
+                <input
+                  type="number"
+                  class="form-control"
+                  [(ngModel)]="currentDeduction.amount"
+                />
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  [(ngModel)]="currentDeduction.description"
+                />
+              </div>
+              <div class="form-group btn-group">
+                <button class="btn btn-outline" (click)="addDeduction()">+ Add</button>
+              </div>
+            </div>
+            <div class="deductions-list" *ngIf="currentItem.deductions?.length">
+              <div class="deduction-item" *ngFor="let ded of currentItem.deductions; let i = index">
+                <span class="ded-type">{{ getDeductionLabel(ded.type) }}</span>
+                <span class="ded-amount">{{ formatCurrency(ded.amount) }}</span>
+                <span class="ded-desc">{{ ded.description }}</span>
+                <button class="remove-btn" (click)="removeDeduction(i)">×</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item Value Summary -->
+          <div class="item-value-summary">
+            <div class="value-row">
+              <span>Gross Value:</span>
+              <span>{{ formatCurrency(currentItem.grossValue) }}</span>
+            </div>
+            <div class="value-row">
+              <span>Total Deductions:</span>
+              <span class="deduction">-{{ formatCurrency(currentItem.totalDeductions) }}</span>
+            </div>
+            <div class="value-row total">
+              <span>Net Value:</span>
+              <span>{{ formatCurrency(currentItem.netValue) }}</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" (click)="addItem()">+ Add Item to Purchase</button>
+        </div>
+      </div>
+
+      <!-- Items List -->
+      <div class="form-section" *ngIf="purchaseForm.items?.length">
+        <h3>Items ({{ purchaseForm.items.length }})</h3>
+        <div class="items-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Purity</th>
+                <th>Gross Wt</th>
+                <th>Net Wt</th>
+                <th>Deductions</th>
+                <th>Net Value</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of purchaseForm.items; let i = index">
+                <td>
+                  <span class="item-type">{{ item.itemType }}</span>
+                  <span class="item-desc" *ngIf="item.description">{{ item.description }}</span>
+                </td>
+                <td>
+                  <span class="purity-tested">{{ item.purityTested }}</span>
+                  <span class="purity-marked" *ngIf="item.purityMarked !== item.purityTested">
+                    (Marked: {{ item.purityMarked }})
+                  </span>
+                </td>
+                <td>{{ formatWeight(item.grossWeight) }}</td>
+                <td>{{ formatWeight(item.netWeight) }}</td>
+                <td>{{ formatCurrency(item.totalDeductions) }}</td>
+                <td class="value-cell">{{ formatCurrency(item.netValue) }}</td>
+                <td>
+                  <button class="action-btn delete" (click)="removeItem(i)">🗑️</button>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2"><strong>Totals</strong></td>
+                <td><strong>{{ formatWeight(purchaseForm.totalGrossWeight) }}</strong></td>
+                <td><strong>{{ formatWeight(purchaseForm.totalNetWeight) }}</strong></td>
+                <td></td>
+                <td class="value-cell"><strong>{{ formatCurrency(purchaseForm.totalValue) }}</strong></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Payment Details -->
+      <div class="form-section" *ngIf="purchaseForm.items?.length">
+        <h3>Payment Details</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Payment Mode</label>
+            <select class="form-control" [(ngModel)]="purchaseForm.paymentMode">
+              <option *ngFor="let mode of paymentModes" [value]="mode">
+                {{ getPaymentModeLabel(mode) }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Amount to Pay</label>
+            <input
+              type="number"
+              class="form-control"
+              [(ngModel)]="purchaseForm.paidAmount"
+            />
+          </div>
+        </div>
+        <div class="form-row" *ngIf="purchaseForm.paymentMode === 'CHEQUE'">
+          <div class="form-group">
+            <label>Cheque Number</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="purchaseForm.chequeNumber"
+            />
+          </div>
+          <div class="form-group">
+            <label>Cheque Date</label>
+            <input
+              type="date"
+              class="form-control"
+              [(ngModel)]="purchaseForm.chequeDate"
+            />
+          </div>
+        </div>
+        <div class="form-row" *ngIf="purchaseForm.paymentMode === 'BANK_TRANSFER'">
+          <div class="form-group flex-2">
+            <label>Bank Details / Reference</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="purchaseForm.bankDetails"
+              placeholder="Bank account or transaction reference"
+            />
+          </div>
+        </div>
+        <div class="form-row" *ngIf="purchaseForm.paymentMode === 'EXCHANGE'">
+          <div class="form-group">
+            <label>Exchange Invoice Number</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="purchaseForm.exchangeInvoiceNumber"
+              placeholder="Invoice number for exchange"
+            />
+          </div>
+          <div class="form-group">
+            <label>Exchange Amount</label>
+            <input
+              type="number"
+              class="form-control"
+              [(ngModel)]="purchaseForm.exchangeAmount"
+            />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-2">
+            <label>Remarks</label>
+            <textarea
+              class="form-control"
+              rows="2"
+              [(ngModel)]="purchaseForm.remarks"
+              placeholder="Any additional notes"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="form-actions" *ngIf="purchaseForm.items?.length">
+        <button class="btn btn-outline" (click)="savePurchase('DRAFT')" [disabled]="isLoading">
+          Save as Draft
+        </button>
+        <button class="btn btn-primary" (click)="savePurchase('COMPLETED')" [disabled]="isLoading">
+          Complete Purchase
+        </button>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- DETAIL VIEW -->
+  <ng-container *ngIf="viewMode === 'detail' && selectedPurchase && !isLoading">
+    <div class="detail-container">
+      <div class="detail-header">
+        <div class="purchase-info">
+          <h2>{{ selectedPurchase.purchaseNumber }}</h2>
+          <span
+            class="status-badge large"
+            [style.background-color]="getStatusColor(selectedPurchase.status)"
+          >
+            {{ selectedPurchase.status }}
+          </span>
+        </div>
+        <div class="purchase-meta">
+          <span>Date: {{ formatDate(selectedPurchase.purchaseDate) }}</span>
+          <span>Created by: {{ selectedPurchase.createdByName }}</span>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-section">
+          <h3>Customer Details</h3>
+          <div class="detail-row">
+            <span class="label">Name:</span>
+            <span class="value">{{ selectedPurchase.customerName }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Mobile:</span>
+            <span class="value">{{ selectedPurchase.customerMobile }}</span>
+          </div>
+          <div class="detail-row" *ngIf="selectedPurchase.customerAddress">
+            <span class="label">Address:</span>
+            <span class="value">{{ selectedPurchase.customerAddress }}</span>
+          </div>
+          <div class="detail-row" *ngIf="selectedPurchase.customerIdProof">
+            <span class="label">ID Proof:</span>
+            <span class="value">{{ selectedPurchase.customerIdProof }} - {{ selectedPurchase.customerIdNumber }}</span>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Payment Details</h3>
+          <div class="detail-row">
+            <span class="label">Mode:</span>
+            <span class="value">{{ getPaymentModeLabel(selectedPurchase.paymentMode) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Amount Paid:</span>
+            <span class="value highlight">{{ formatCurrency(selectedPurchase.paidAmount) }}</span>
+          </div>
+          <div class="detail-row" *ngIf="selectedPurchase.chequeNumber">
+            <span class="label">Cheque:</span>
+            <span class="value">{{ selectedPurchase.chequeNumber }} ({{ formatDate(selectedPurchase.chequeDate!) }})</span>
+          </div>
+          <div class="detail-row" *ngIf="selectedPurchase.exchangeInvoiceNumber">
+            <span class="label">Exchange Invoice:</span>
+            <span class="value">{{ selectedPurchase.exchangeInvoiceNumber }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section full-width">
+        <h3>Items ({{ selectedPurchase.items.length }})</h3>
+        <div class="items-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Purity</th>
+                <th>Test Method</th>
+                <th>Condition</th>
+                <th>Gross Wt</th>
+                <th>Net Wt</th>
+                <th>Gross Value</th>
+                <th>Deductions</th>
+                <th>Net Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of selectedPurchase.items">
+                <td>
+                  <span class="item-type">{{ item.itemType }}</span>
+                  <span class="item-desc" *ngIf="item.description">{{ item.description }}</span>
+                </td>
+                <td>
+                  <span class="purity-tested">{{ item.purityTested }}</span>
+                </td>
+                <td>{{ getTestMethodLabel(item.testMethod) }}</td>
+                <td>
+                  <span
+                    class="condition-badge"
+                    [style.background-color]="getConditionColor(item.condition)"
+                  >
+                    {{ getConditionLabel(item.condition) }}
+                  </span>
+                </td>
+                <td>{{ formatWeight(item.grossWeight) }}</td>
+                <td>{{ formatWeight(item.netWeight) }}</td>
+                <td>{{ formatCurrency(item.grossValue) }}</td>
+                <td class="deduction">-{{ formatCurrency(item.totalDeductions) }}</td>
+                <td class="value-cell">{{ formatCurrency(item.netValue) }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4"><strong>Totals</strong></td>
+                <td><strong>{{ formatWeight(selectedPurchase.totalGrossWeight) }}</strong></td>
+                <td><strong>{{ formatWeight(selectedPurchase.totalNetWeight) }}</strong></td>
+                <td colspan="2"></td>
+                <td class="value-cell"><strong>{{ formatCurrency(selectedPurchase.totalValue) }}</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="detail-section" *ngIf="selectedPurchase.remarks">
+        <h3>Remarks</h3>
+        <p>{{ selectedPurchase.remarks }}</p>
+      </div>
+
+      <div class="detail-actions" *ngIf="selectedPurchase.status !== 'CANCELLED'">
+        <button class="btn btn-outline" (click)="cancelPurchase(selectedPurchase)">
+          Cancel Purchase
+        </button>
+      </div>
+    </div>
+  </ng-container>
+</div>
